@@ -1,2 +1,4 @@
 *.FCStd1
 *.pyc
+.vscode/settings.json
+*.msh

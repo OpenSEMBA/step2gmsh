@@ -1,3 +1,6 @@
+import sys 
+
+sys.path.insert(0,'.')
 from src.mesher import *
 
 import os
@@ -34,8 +37,10 @@ def test_two_wires_coax():
 def test_five_wires():
     meshFromStep(testdata_path, 'five_wires')
 
+
 def test_three_wires_ribbon():
     meshFromStep(testdata_path, 'three_wires_ribbon')
+
 
 def test_stepShapes_for_partially_filled_coax():
     case_name = 'partially_filled_coax'
@@ -70,6 +75,7 @@ def test_stepShapes_for_five_wires():
     assert (len(stepShapes.pecs) == 6)
     assert (len(stepShapes.dielectrics) == 5)
 
+
 def test_stepShapes_for_three_wires_ribbon():
     case_name = 'three_wires_ribbon'
 
@@ -86,4 +92,3 @@ def test_stepShapes_for_three_wires_ribbon():
     assert (len(stepShapes.openRegion) == 1)
     assert (len(stepShapes.pecs) == 3)
     assert (len(stepShapes.dielectrics) == 3)
-

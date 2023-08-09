@@ -1,5 +1,4 @@
 import gmsh
-import os
 import sys
 from collections import defaultdict
 
@@ -43,7 +42,8 @@ class StepShapes:
 def meshFromStep(
         folder: str,
         case_name: str,
-        meshing_options=DEFAULT_MESHING_OPTIONS):
+        meshing_options=DEFAULT_MESHING_OPTIONS,
+        runGUI: bool = False):
 
     gmsh.initialize()
     gmsh.model.add(case_name)
@@ -113,7 +113,7 @@ def meshFromStep(
     # Exporting
     gmsh.write(case_name + '.msh')
 
-    if '-nopopup' not in sys.argv:
+    if runGUI:
         gmsh.fltk.run()
 
     gmsh.finalize()
