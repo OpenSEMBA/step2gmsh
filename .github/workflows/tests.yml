@@ -11,6 +11,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  STEP2GMSH_TOP_DIR: step2gmsh
+
 jobs:
   builds-and-tests:
     strategy:
@@ -32,15 +35,15 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Installing dependencies
-      run: python3 -m pip install -r requirements.txt
-
     - name: Checkout
       uses: actions/checkout@v3
       with:
-        path: lmdiazangulo/step2gmsh
+        path: lmdiazangulo/${{ env.STEP2GMSH_TOP_DIR }}
         ssh-key: ${{ secrets.STEP2GMSH_SSH_KEY }}
+    
+    - name: Installing dependencies
+      run: python3 -m pip install -r ${{env.STEP2GMSH_TOP_DIR}}/requirements.txt
           
     - name: Run tests 
-      run: python -m pytest step2gmsh/test/test_*.py
+      run: python -m pytest ${{env.STEP2GMSH_TOP_DIR}}/test/test_*.py
       
