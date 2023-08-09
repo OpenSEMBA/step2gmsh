@@ -29,20 +29,18 @@ jobs:
       uses: styfle/cancel-workflow-action@0.11.0
       with:
         access_token: ${{ github.token }}
-    
-    - name: Setup python  
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-        #cache: 'pip'
-
+           
     - name: Checkout
       uses: actions/checkout@v3
       with:
         ssh-key: ${{secrets.STEP2GMSH_SSH_KEY}}
-    
-    - name: Installing dependencies
-      run: python3 -m pip install -r requirements.txt
+        
+    - name: Setup python  
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        cache: 'pip'
+    - run: pip install -r requirements.txt
           
     - name: Run tests 
       run: python3 -m pytest test/
