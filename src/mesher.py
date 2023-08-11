@@ -6,20 +6,24 @@ DEFAULT_MESHING_OPTIONS = {
     "Mesh.MeshSizeFromCurvature": 25,
     "Mesh.ElementOrder": 3,
     "Mesh.ScalingFactor": 1e-3,
-    "General.DrawBoundingBoxes": 1,
     "Mesh.SurfaceFaces": 1,
-    "Mesh.MeshSizeMax": 1
+    "Mesh.MeshSizeMax": 1,
+    "General.DrawBoundingBoxes": 1,
 }
 
-class StepShapes:
+
+class ShapesClassification:
     def __init__(self, shapes):
         gmsh.model.occ.synchronize()
 
         self.allShapes = shapes
 
-        self.openRegion = self.get_surfaces(shapes, "OpenRegion_")
         self.pecs = self.get_surfaces(shapes, "Conductor_")
         self.dielectrics = self.get_surfaces(shapes, "Dielectric_")
+        self.open = self.get_surfaces(shapes, "OpenRegion_")
+
+        if len(self.open > 1):
+            raise ValueError("Only one open region is allowed.")
 
     @staticmethod
     def getNumberFromEntityName(entity_name: str, label: str):
@@ -34,10 +38,19 @@ class StepShapes:
             entity_name = gmsh.model.get_entity_name(*s)
             if s[0] != 2 or label not in entity_name:
                 continue
-            num = StepShapes.getNumberFromEntityName(entity_name, label)
+            num = ShapesClassification.getNumberFromEntityName(
+                entity_name, label)
             surfaces[num] = s
 
         return surfaces
+
+
+def extractBoundaries(shapes: dict):
+    shape_boundaries = dict()
+    for num, surf in shapes.items():
+        shape_boundaries[num] = gmsh.model.getBoundary([surf])
+    return shape_boundaries
+
 
 def meshFromStep(
         folder: str,
@@ -48,58 +61,62 @@ def meshFromStep(
     gmsh.initialize()
     gmsh.model.add(case_name)
 
-    # Importing from FreeCAD generated steps. STEP default units are mm.
-    stepShapes = StepShapes(
+    # Importing from FreeCAD generated steps.
+    # STEP default units are mm.
+    allShapes = ShapesClassification(
         gmsh.model.occ.importShapes(
             folder + case_name + '/' + case_name + '.step',
             highestDimOnly=False
         )
     )
-    
+
     # --- Geometry manipulation ---
     # Creates global domain.
-    if len(stepShapes.openRegion) != 0:
-        region = stepShapes.openRegion[0]
+    if len(allShapes.open) != 0:
         isOpenProblem = True
+        globalDomain = allShapes.open[0]
     else:
-        region = stepShapes.pecs[0] 
         isOpenProblem = False
+        globalDomain = allShapes.pecs[0]
 
-    for num, surf in stepShapes.pecs.items():
+    for num, surf in allShapes.pecs.items():
         if num == 0 and isOpenProblem == False:
             continue
-        for _, dielectric_surf in stepShapes.dielectrics.items():
-            gmsh.model.occ.cut([dielectric_surf], [surf], removeTool=False)    
-        gmsh.model.occ.cut([region], [surf], removeTool=False)
+        for _, dielectric_surf in allShapes.dielectrics.items():
+            gmsh.model.occ.cut([dielectric_surf], [surf], removeTool=False)
+        gmsh.model.occ.cut([globalDomain], [surf], removeTool=False)
 
-    for _, surf in stepShapes.dielectrics.items():
-        gmsh.model.occ.cut([region], [surf], removeTool=False)
-    
+    for _, surf in allShapes.dielectrics.items():
+        gmsh.model.occ.cut([globalDomain], [surf], removeTool=False)
+
     gmsh.model.occ.synchronize()
 
-    # Prepares PEC boundaries and removes surfaces.
-    pec_bdrs = dict()
-    for num, surf in stepShapes.pecs.items():
-        pec_bdrs[num] = gmsh.model.getBoundary([surf])
+    pec_bdrs = extractBoundaries(allShapes.pecs)
+    open_bdrs = extractBoundaries(allShapes.open)
+
+    for num, surf in allShapes.pecs.items():
         if num != 0:
             gmsh.model.occ.remove([surf])
         elif num == 0 and isOpenProblem:
             gmsh.model.occ.remove([surf])
-    
+
     gmsh.model.occ.synchronize()
 
     # --- Physical groups ---
-    # Boundaries.
+    # Adds boundaries.
     for num, bdrs in pec_bdrs.items():
         name = "Conductor_" + str(num)
         for bdr in bdrs:
             if bdr[1] > 0:
                 gmsh.model.addPhysicalGroup(1, [bdr[1]], name=name)
+    
+    if len(open_bdrs) > 0:
+        gmsh.model.addPhysicalGroup(1, open_bdrs)
 
     # Domains.
-    gmsh.model.addPhysicalGroup(2, [region[1]], name='Vacuum')
+    gmsh.model.addPhysicalGroup(2, [globalDomain[1]], name='Vacuum')
 
-    for num, surf in stepShapes.dielectrics.items():
+    for num, surf in allShapes.dielectrics.items():
         name = "Dielectric_" + str(num)
         gmsh.model.addPhysicalGroup(2, [surf[1]], name=name)
 
