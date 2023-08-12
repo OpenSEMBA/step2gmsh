@@ -22,7 +22,7 @@ class ShapesClassification:
         self.dielectrics = self.get_surfaces(shapes, "Dielectric_")
         self.open = self.get_surfaces(shapes, "OpenRegion_")
 
-        if len(self.open > 1):
+        if len(self.open) > 1:
             raise ValueError("Only one open region is allowed.")
 
     @staticmethod
