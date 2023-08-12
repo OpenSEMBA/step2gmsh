@@ -7,9 +7,9 @@ on:
   push:
     branches:
       - master
-      - dev
   pull_request:
-  workflow_dispatch:
+    branches:
+      - master
 
 env:
   STEP2GMSH_TOP_DIR: step2gmsh

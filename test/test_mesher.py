@@ -11,12 +11,12 @@ testdata_path = dir_path + '/../testData/'
 
 
 def test_getNumberFromEntityName():
-    assert (StepShapes.getNumberFromEntityName(
+    assert (ShapesClassification.getNumberFromEntityName(
         'Shapes/Conductor_1',
         'Conductor_') == 1
     )
 
-    assert (StepShapes.getNumberFromEntityName(
+    assert (ShapesClassification.getNumberFromEntityName(
         'Shapes/solid_wire_002/Conductor_002/Conductor_002',
         'Conductor_') == 2
     )
@@ -39,7 +39,7 @@ def test_five_wires():
 
 
 def test_three_wires_ribbon():
-    meshFromStep(testdata_path, 'three_wires_ribbon')
+    meshFromStep(testdata_path, 'three_wires_ribbon', runGUI=True)
 
 
 def test_stepShapes_for_partially_filled_coax():
@@ -47,7 +47,7 @@ def test_stepShapes_for_partially_filled_coax():
 
     gmsh.initialize()
     gmsh.model.add(case_name)
-    stepShapes = StepShapes(
+    stepShapes = ShapesClassification(
         gmsh.model.occ.importShapes(
             testdata_path + case_name + '/' + case_name + '.step'
         )
@@ -64,7 +64,7 @@ def test_stepShapes_for_five_wires():
 
     gmsh.initialize()
     gmsh.model.add(case_name)
-    stepShapes = StepShapes(
+    stepShapes = ShapesClassification(
         gmsh.model.occ.importShapes(
             testdata_path + case_name + '/' + case_name + '.step'
         )
@@ -81,7 +81,7 @@ def test_stepShapes_for_three_wires_ribbon():
 
     gmsh.initialize()
     gmsh.model.add(case_name)
-    stepShapes = StepShapes(
+    stepShapes = ShapesClassification(
         gmsh.model.occ.importShapes(
             testdata_path + case_name + '/' + case_name + '.step'
         )
@@ -89,6 +89,6 @@ def test_stepShapes_for_three_wires_ribbon():
 
     gmsh.finalize()
 
-    assert (len(stepShapes.openRegion) == 1)
+    assert (len(stepShapes.open) == 1)
     assert (len(stepShapes.pecs) == 3)
     assert (len(stepShapes.dielectrics) == 3)
