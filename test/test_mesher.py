@@ -39,7 +39,7 @@ def test_five_wires():
 
 
 def test_three_wires_ribbon():
-    meshFromStep(testdata_path, 'three_wires_ribbon', runGUI=True)
+    meshFromStep(testdata_path, 'three_wires_ribbon')
 
 
 def test_stepShapes_for_partially_filled_coax():

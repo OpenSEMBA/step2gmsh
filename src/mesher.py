@@ -111,7 +111,9 @@ def meshFromStep(
                 gmsh.model.addPhysicalGroup(1, [bdr[1]], name=name)
     
     if len(open_bdrs) > 0:
-        gmsh.model.addPhysicalGroup(1, open_bdrs)
+        for bdr in open_bdrs[0]:
+            if bdr[1] > 0:   # Orientation of the boundary must be positive.
+                gmsh.model.addPhysicalGroup(1, [bdr[1]], name="OpenRegion_0")
 
     # Domains.
     gmsh.model.addPhysicalGroup(2, [globalDomain[1]], name='Vacuum')
