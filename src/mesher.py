@@ -3,7 +3,7 @@ import sys
 from collections import defaultdict
 
 DEFAULT_MESHING_OPTIONS = {
-    "Mesh.MeshSizeFromCurvature": 35,
+    "Mesh.MeshSizeFromCurvature": 40,
     "Mesh.ElementOrder": 3,
     "Mesh.ScalingFactor": 1e-3,
     "Mesh.SurfaceFaces": 1,
