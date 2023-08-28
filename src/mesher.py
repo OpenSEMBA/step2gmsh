@@ -3,11 +3,11 @@ import sys
 from collections import defaultdict
 
 DEFAULT_MESHING_OPTIONS = {
-    "Mesh.MeshSizeFromCurvature": 25,
+    "Mesh.MeshSizeFromCurvature": 35,
     "Mesh.ElementOrder": 3,
     "Mesh.ScalingFactor": 1e-3,
     "Mesh.SurfaceFaces": 1,
-    "Mesh.MeshSizeMax": 1,
+    "Mesh.MeshSizeMax": 10,
     "General.DrawBoundingBoxes": 1,
 }
 
@@ -122,6 +122,18 @@ def meshFromStep(
         name = "Dielectric_" + str(num)
         gmsh.model.addPhysicalGroup(2, [surf[1]], name=name)
 
+    # Removes entities which are not at least in one physical group.
+    allEnts = gmsh.model.get_entities()
+    
+    entsInPG = []
+    for pG in gmsh.model.get_physical_groups():
+        ents = gmsh.model.getEntitiesForPhysicalGroup(pG[0], pG[1])
+        for ent in ents:
+            entsInPG.append((pG[0], ent)) 
+
+    entsNotInPG = [x for x in allEnts if x not in entsInPG]
+    gmsh.model.remove_entities(entsNotInPG)
+
     # Meshing.
     for [opt, val] in meshing_options.items():
         gmsh.option.setNumber(opt, val)
@@ -129,8 +141,8 @@ def meshFromStep(
     gmsh.model.mesh.generate(2)
     gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
 
-    # Exporting
-    gmsh.write(case_name + '.msh')
+    # # Exporting
+    # gmsh.write(case_name + '.msh')
 
     if runGUI:
         gmsh.fltk.run()
