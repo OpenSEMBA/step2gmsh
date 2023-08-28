@@ -7,7 +7,7 @@ DEFAULT_MESHING_OPTIONS = {
     "Mesh.ElementOrder": 3,
     "Mesh.ScalingFactor": 1e-3,
     "Mesh.SurfaceFaces": 1,
-    "Mesh.MeshSizeMax": 10,
+    # "Mesh.MeshSizeMax": 10,
     "General.DrawBoundingBoxes": 1,
 }
 
@@ -141,8 +141,8 @@ def meshFromStep(
     gmsh.model.mesh.generate(2)
     gmsh.option.setNumber("Mesh.MshFileVersion", 2.2)
 
-    # # Exporting
-    # gmsh.write(case_name + '.msh')
+    # Exporting
+    gmsh.write(case_name + '.msh')
 
     if runGUI:
         gmsh.fltk.run()
