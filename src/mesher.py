@@ -11,6 +11,7 @@ DEFAULT_MESHING_OPTIONS = {
     "General.DrawBoundingBoxes": 1,
 }
 
+RUN_GUI=True
 
 class ShapesClassification:
     def __init__(self, shapes):
@@ -40,23 +41,58 @@ class ShapesClassification:
                 continue
             num = ShapesClassification.getNumberFromEntityName(
                 entity_name, label)
-            surfaces[num] = s
+            surfaces[num] = [s]
 
         return surfaces
+
+    def isOpenProblem(self):
+        return len(self.open) != 0
+
+    def buildGlobalDomain(self):
+        if self.isOpenProblem():
+            dom = self.open[0]
+        else:
+            dom = self.pecs[0]
+
+        surfsToRemove = []
+        for num, surf in self.pecs.items():
+            if num == 0 and self.isOpenProblem() == False:
+                continue
+            surfsToRemove.extend(surf)
+
+        for _, surf in self.dielectrics.items():
+            surfsToRemove.extend(surf)
+
+        dom = gmsh.model.occ.cut(dom, surfsToRemove, removeTool=False)[0]
+
+        gmsh.model.occ.synchronize()
+
+        return dom
+    
+    def removeConductorsFromDielectrics(self):
+        for num, diel in self.dielectrics.items():
+            pec_surfs = []
+            for _, pec_surf in self.dielectrics.items():
+                if num == 0 and self.isOpenProblem() == False:
+                    continue
+                pec_surfs.extend(pec_surf)
+            self.dielectrics[num] = gmsh.model.occ.cut(diel, pec_surfs, removeTool=False)[0]
+
+    gmsh.model.occ.synchronize()
 
 
 def extractBoundaries(shapes: dict):
     shape_boundaries = dict()
-    for num, surf in shapes.items():
-        shape_boundaries[num] = gmsh.model.getBoundary([surf])
+    for num, bdrs in shapes.items():
+        shape_boundaries[num] = gmsh.model.getBoundary(bdrs)
+
     return shape_boundaries
 
 
 def meshFromStep(
         folder: str,
         case_name: str,
-        meshing_options=DEFAULT_MESHING_OPTIONS,
-        runGUI: bool = False):
+        meshing_options=DEFAULT_MESHING_OPTIONS):
 
     gmsh.initialize()
     gmsh.model.add(case_name)
@@ -71,34 +107,28 @@ def meshFromStep(
     )
 
     # --- Geometry manipulation ---
-    # Creates global domain.
-    if len(allShapes.open) != 0:
-        isOpenProblem = True
-        globalDomain = allShapes.open[0]
-    else:
-        isOpenProblem = False
-        globalDomain = allShapes.pecs[0]
+    allShapes.removeConductorsFromDielectrics()
 
-    for num, surf in allShapes.pecs.items():
-        if num == 0 and isOpenProblem == False:
-            continue
-        for _, dielectric_surf in allShapes.dielectrics.items():
-            gmsh.model.occ.cut([dielectric_surf], [surf], removeTool=False)
-        gmsh.model.occ.cut([globalDomain], [surf], removeTool=False)
-
-    for _, surf in allShapes.dielectrics.items():
-        gmsh.model.occ.cut([globalDomain], [surf], removeTool=False)
-
-    gmsh.model.occ.synchronize()
-
+    # Extract boundaries removing boundaries repeated in other domains.
     pec_bdrs = extractBoundaries(allShapes.pecs)
-    open_bdrs = extractBoundaries(allShapes.open)
+    
+    for num, bdrs in pec_bdrs.items():
+        if num == 0:
+            continue
+        for bdr in bdrs:
+            if (bdr[0], -bdr[1]) in pec_bdrs[0]:
+                pec_bdrs[0].remove((bdr[0], -bdr[1]))
+    for num, bdrs in pec_bdrs.items():
+        for bdr in bdrs:
+            if bdr[1] < 0:
+                pec_bdrs[num].append((bdr[0], -bdr[1]))
+                pec_bdrs[num].remove(bdr)
 
-    for num, surf in allShapes.pecs.items():
+    for num, surfs in allShapes.pecs.items():
         if num != 0:
-            gmsh.model.occ.remove([surf])
-        elif num == 0 and isOpenProblem:
-            gmsh.model.occ.remove([surf])
+            gmsh.model.occ.remove(surfs)
+        elif num == 0 and allShapes.isOpenProblem():
+            gmsh.model.occ.remove(surfs)
 
     gmsh.model.occ.synchronize()
 
@@ -109,27 +139,28 @@ def meshFromStep(
         for bdr in bdrs:
             if bdr[1] > 0:
                 gmsh.model.addPhysicalGroup(1, [bdr[1]], name=name)
-    
-    if len(open_bdrs) > 0:
-        for bdr in open_bdrs[0]:
-            if bdr[1] > 0:   # Orientation of the boundary must be positive.
-                gmsh.model.addPhysicalGroup(1, [bdr[1]], name="OpenRegion_0")
+
+    for bdr in extractBoundaries(allShapes.open):
+        if bdr[1] > 0:   # Positive orientations mean that is the most external region.
+            gmsh.model.addPhysicalGroup(1, [bdr[1]], name="OpenRegion_0")
 
     # Domains.
-    gmsh.model.addPhysicalGroup(2, [globalDomain[1]], name='Vacuum')
+    for surf in allShapes.buildGlobalDomain():
+        gmsh.model.addPhysicalGroup(2, [surf[1]], name='Vacuum')
 
-    for num, surf in allShapes.dielectrics.items():
+    for num, surfs in allShapes.dielectrics.items():
         name = "Dielectric_" + str(num)
-        gmsh.model.addPhysicalGroup(2, [surf[1]], name=name)
+        tags = [x[1] for x in surfs]
+        gmsh.model.addPhysicalGroup(2, tags, name=name)
 
     # Removes entities which are not at least in one physical group.
     allEnts = gmsh.model.get_entities()
-    
+
     entsInPG = []
     for pG in gmsh.model.get_physical_groups():
         ents = gmsh.model.getEntitiesForPhysicalGroup(pG[0], pG[1])
         for ent in ents:
-            entsInPG.append((pG[0], ent)) 
+            entsInPG.append((pG[0], ent))
 
     entsNotInPG = [x for x in allEnts if x not in entsInPG]
     gmsh.model.remove_entities(entsNotInPG)
@@ -144,7 +175,7 @@ def meshFromStep(
     # Exporting
     gmsh.write(case_name + '.msh')
 
-    if runGUI:
+    if RUN_GUI: # for debugging only.
         gmsh.fltk.run()
 
     gmsh.finalize()

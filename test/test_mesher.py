@@ -1,10 +1,10 @@
-import sys 
-
-sys.path.insert(0,'.')
-from src.mesher import *
-
-import os
 import gmsh
+import os
+from src.mesher import *
+import sys
+
+sys.path.insert(0, '.')
+
 
 dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'
 testdata_path = dir_path + '/../testData/'
@@ -40,6 +40,10 @@ def test_five_wires():
 
 def test_three_wires_ribbon():
     meshFromStep(testdata_path, 'three_wires_ribbon')
+
+
+def test_nested_coax():
+    meshFromStep(testdata_path, 'nested_coax')
 
 
 def test_stepShapes_for_partially_filled_coax():
