@@ -12,7 +12,7 @@ DEFAULT_MESHING_OPTIONS = {
     "General.DrawBoundingBoxes": 1
 }
 
-RUN_GUI=True
+RUN_GUI=False
 
 class ShapesClassification:
     def __init__(self, shapes):
@@ -126,9 +126,10 @@ def meshFromStep(
         tags = [x[1] for x in bdrs]
         gmsh.model.addPhysicalGroup(1, tags, name=name)
 
-    for bdr in extractBoundaries(allShapes.open):
-        if bdr[1] > 0:   # Positive orientations mean that is the most external region.
-            gmsh.model.addPhysicalGroup(1, [bdr[1]], name="OpenRegion_0")
+    for num, bdrs in extractBoundaries(allShapes.open).items():
+        name = "OpenRegion_" + str(num)
+        tags = [x[1] for x in bdrs if x[1] > 0]
+        gmsh.model.addPhysicalGroup(1, tags, name=name)
 
     # Domains.
     for surf in vacuumDomain:

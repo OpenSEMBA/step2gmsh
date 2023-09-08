@@ -9,12 +9,14 @@ sys.path.insert(0, '.')
 dir_path = os.path.dirname(os.path.realpath(__file__)) + '/'
 testdata_path = dir_path + '/../testData/'
 
+
 def countEntitiesInPhysicalGroupWithName(name: str):
     return len(
         gmsh.model.getEntitiesForPhysicalGroup(
             *getPhysicalGrupWithName(name)
         )
     )
+
 
 def test_getNumberFromEntityName():
     assert (ShapesClassification.getNumberFromEntityName(
@@ -112,7 +114,7 @@ def test_meshFromStep_with_five_wires():
 
     pGs = gmsh.model.getPhysicalGroups()
     pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
-    
+
     assert (len(pGs) == 12)
     assert ('Conductor_0' in pGNames)
     assert ('Conductor_1' in pGNames)
@@ -127,23 +129,24 @@ def test_meshFromStep_with_five_wires():
     assert ('Dielectric_5' in pGNames)
     assert ('Vacuum' in pGNames)
 
-    assert(countEntitiesInPhysicalGroupWithName('Conductor_0') == 1)
-    assert(countEntitiesInPhysicalGroupWithName('Conductor_1') == 1)
-    assert(countEntitiesInPhysicalGroupWithName('Conductor_2') == 1)
-    assert(countEntitiesInPhysicalGroupWithName('Conductor_3') == 1)
-    assert(countEntitiesInPhysicalGroupWithName('Conductor_4') == 1)
-    assert(countEntitiesInPhysicalGroupWithName('Conductor_5') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_0') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_1') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_2') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_3') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_4') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_5') == 1)
 
-    assert(countEntitiesInPhysicalGroupWithName('Dielectric_1') == 1)
-    assert(countEntitiesInPhysicalGroupWithName('Dielectric_2') == 1)
-    assert(countEntitiesInPhysicalGroupWithName('Dielectric_3') == 1)
-    assert(countEntitiesInPhysicalGroupWithName('Dielectric_4') == 1)
-    assert(countEntitiesInPhysicalGroupWithName('Dielectric_5') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Dielectric_1') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Dielectric_2') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Dielectric_3') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Dielectric_4') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Dielectric_5') == 1)
 
-    assert(countEntitiesInPhysicalGroupWithName('Vacuum') == 1)
-    
+    assert (countEntitiesInPhysicalGroupWithName('Vacuum') == 1)
+
     # gmsh.fltk.run()  # for debugging only.
     gmsh.finalize()
+
 
 def test_three_wires_ribbon():
     runStepToGmsh(testdata_path, 'three_wires_ribbon')
