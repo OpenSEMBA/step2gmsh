@@ -64,7 +64,8 @@ class ShapesClassification:
         for _, surf in self.dielectrics.items():
             surfsToRemove.extend(surf)
 
-        dom = gmsh.model.occ.cut(dom, surfsToRemove, removeTool=False)[0]
+        dom = gmsh.model.occ.cut(
+            dom, surfsToRemove, removeObject=False, removeTool=False)[0]
         gmsh.model.occ.synchronize()
 
         return dom
@@ -72,13 +73,13 @@ class ShapesClassification:
     def removeConductorsFromDielectrics(self):
         for num, diel in self.dielectrics.items():
             pec_surfs = []
-            for _, pec_surf in self.dielectrics.items():
-                if num == 0 and self.isOpenProblem() == False:
+            for num2, pec_surf in self.pecs.items():
+                if num2 == 0 and not self.isOpenProblem():
                     continue
                 pec_surfs.extend(pec_surf)
             self.dielectrics[num] = gmsh.model.occ.cut(diel, pec_surfs, removeTool=False)[0]
 
-    gmsh.model.occ.synchronize()
+        gmsh.model.occ.synchronize()
 
 
 def getPhysicalGrupWithName(name: str):
@@ -110,35 +111,13 @@ def meshFromStep(
     )
 
     # --- Geometry manipulation ---
-    vacuumDomain = allShapes.buildVacuumDomain()
+    # -- Domains
     allShapes.removeConductorsFromDielectrics()
+    vacuumDomain = allShapes.buildVacuumDomain()
 
-    # Extract boundaries removing boundaries repeated in other domains.
+    # -- Boundaries
     pec_bdrs = extractBoundaries(allShapes.pecs)
-
-    # Removes interior boundaries    
-    # for num, bdrs in pec_bdrs.items():
-    #     if num == 0:
-    #         continue
-    #     for bdr in bdrs:
-    #         invertedBdr = (bdr[0], -bdr[1])
-    #         for num2, bdrs2 in pec_bdrs.items():
-    #             if invertedBdr in bdrs2:
-    #                 pec_bdrs[num2].remove(invertedBdr)
-
-    # for num, bdrs in pec_bdrs.items():
-    #     for bdr in bdrs:
-    #         if bdr[1] < 0:
-    #             pec_bdrs[num].append((bdr[0], -bdr[1]))
-    #             pec_bdrs[num].remove(bdr)
-
-    # for num, surfs in allShapes.pecs.items():
-    #     if num != 0:
-    #         gmsh.model.occ.remove(surfs)
-    #     elif num == 0 and allShapes.isOpenProblem():
-    #         gmsh.model.occ.remove(surfs)
-
-    # gmsh.model.occ.synchronize()
+    gmsh.model.occ.synchronize()
 
     # --- Physical groups ---
     # Adds boundaries.
