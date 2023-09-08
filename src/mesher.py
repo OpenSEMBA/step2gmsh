@@ -132,8 +132,7 @@ def meshFromStep(
         gmsh.model.addPhysicalGroup(1, tags, name=name)
 
     # Domains.
-    for surf in vacuumDomain:
-        gmsh.model.addPhysicalGroup(2, [surf[1]], name='Vacuum')
+    gmsh.model.addPhysicalGroup(2, [x[1] for x  in vacuumDomain], name='Vacuum')
 
     for num, surfs in allShapes.dielectrics.items():
         name = "Dielectric_" + str(num)
