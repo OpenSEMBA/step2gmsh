@@ -23,27 +23,65 @@ def test_getNumberFromEntityName():
 
 
 def test_partially_filled_coax():
-    meshFromStep(testdata_path, 'partially_filled_coax')
+    runStepToGmsh(testdata_path, 'partially_filled_coax')
 
 
 def test_empty_coax():
+    runStepToGmsh(testdata_path, 'empty_coax')
+
+
+def test_meshFromStep_with_empty_coax():
+    gmsh.initialize()
+
     meshFromStep(testdata_path, 'empty_coax')
+
+    pGs = gmsh.model.getPhysicalGroups()
+    pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
+
+    assert(len(pGs) == 3)
+    assert('Conductor_0' in pGNames)
+    assert('Conductor_1' in pGNames)
+    assert('Vacuum' in pGNames)
+    
+    # gmsh.fltk.run()  # for debugging only.
+    gmsh.finalize()
 
 
 def test_two_wires_coax():
+    runStepToGmsh(testdata_path, 'two_wires_coax')
+
+
+def test_meshFromStep_with_two_wires_coax():
+    gmsh.initialize()
+
     meshFromStep(testdata_path, 'two_wires_coax')
 
+    pGs = gmsh.model.getPhysicalGroups()
+    assert(len(pGs) == 4)
+
+    pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
+    assert('Conductor_0' in pGNames)
+    assert('Conductor_1' in pGNames)
+    assert('Conductor_2' in pGNames)
+    assert('Vacuum' in pGNames)
+
+    c0pG = getPhysicalGrupWithName('Conductor_0')
+    c0ents = gmsh.model.getEntitiesForPhysicalGroup(*c0pG)
+    assert(len(c0ents) == 1)
+    
+    gmsh.fltk.run()  # for debugging only.
+    gmsh.finalize()
 
 def test_five_wires():
-    meshFromStep(testdata_path, 'five_wires')
+    runStepToGmsh(testdata_path, 'five_wires')
 
 
 def test_three_wires_ribbon():
-    meshFromStep(testdata_path, 'three_wires_ribbon')
+    runStepToGmsh(testdata_path, 'three_wires_ribbon')
 
 
 def test_nested_coax():
-    meshFromStep(testdata_path, 'nested_coax')
+    runStepToGmsh(testdata_path, 'nested_coax')
 
 
 def test_stepShapes_for_partially_filled_coax():
