@@ -81,6 +81,10 @@ def test_two_wires_coax():
     runStepToGmsh(testdata_path, 'two_wires_coax')
 
 
+def test_two_wires_open():
+    runStepToGmsh(testdata_path, 'two_wires_open')
+
+
 def test_meshFromStep_with_two_wires_coax():
     gmsh.initialize()
 
