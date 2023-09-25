@@ -1,15 +1,23 @@
 import gmsh
 import sys
 from collections import defaultdict
+from itertools import chain
 
 DEFAULT_MESHING_OPTIONS = {
+    
     "Mesh.MshFileVersion": 2.2,
     "Mesh.MeshSizeFromCurvature": 40,
     "Mesh.ElementOrder": 3,
     "Mesh.ScalingFactor": 1e-3,
     "Mesh.SurfaceFaces": 1,
-    # "Mesh.MeshSizeMax": 10,
-    "General.DrawBoundingBoxes": 1
+    "Mesh.MeshSizeMax": 50,
+
+    "General.DrawBoundingBoxes": 1,
+
+    "Geometry.SurfaceType": 2,    # Diplay surfaces as solids rather than dashed lines.
+    # "Geometry.OCCBoundsUseStl": 1,
+    # "Geometry.OCCSewFaces": 1,
+    # "Geometry.Tolerance": 1e-3,
 }
 
 RUN_GUI=False
@@ -20,44 +28,43 @@ class ShapesClassification:
 
         self.allShapes = shapes
 
-        self.pecs = self.get_surfaces(shapes, "Conductor_")
-        self.dielectrics = self.get_surfaces(shapes, "Dielectric_")
-        self.open = self.get_surfaces(shapes, "OpenRegion_")
+        self.pecs = self.get_surfaces_with_label(shapes, "Conductor_")
+        self.dielectrics = self.get_surfaces_with_label(shapes, "Dielectric_")
+        self.open = self.get_surfaces_with_label(shapes, "OpenRegion_")
 
         if len(self.open) > 1:
             raise ValueError("Only one open region is allowed.")
 
     @staticmethod
-    def getNumberFromEntityName(entity_name: str, label: str):
+    def getNumberFromName(entity_name: str, label: str):
         ini = entity_name.rindex(label) + len(label)
         num = int(entity_name[ini:])
         return num
 
     @staticmethod
-    def get_surfaces(shapes, label: str):
+    def get_surfaces_with_label(entity_tags, label: str):
         surfaces = dict()
-        for s in shapes:
-            entity_name = gmsh.model.get_entity_name(*s)
-            if s[0] != 2 or label not in entity_name:
+        for s in entity_tags:
+            name = gmsh.model.get_entity_name(*s)
+            if s[0] != 2 or label not in name:
                 continue
-            num = ShapesClassification.getNumberFromEntityName(
-                entity_name, label)
+            num = ShapesClassification.getNumberFromName(name, label)
             surfaces[num] = [s]
 
         return surfaces
 
-    def isOpenProblem(self):
+    def isOpenOrSemiOpenProblem(self):
         return len(self.open) != 0
 
     def buildVacuumDomain(self):
-        if self.isOpenProblem():
+        if self.isOpenOrSemiOpenProblem():
             dom = self.open[0]
         else:
             dom = self.pecs[0]
 
         surfsToRemove = []
         for num, surf in self.pecs.items():
-            if num == 0 and self.isOpenProblem() == False:
+            if num == 0 and self.isOpenOrSemiOpenProblem() == False:
                 continue
             surfsToRemove.extend(surf)
 
@@ -74,12 +81,29 @@ class ShapesClassification:
         for num, diel in self.dielectrics.items():
             pec_surfs = []
             for num2, pec_surf in self.pecs.items():
-                if num2 == 0 and not self.isOpenProblem():
+                if num2 == 0 and not self.isOpenOrSemiOpenProblem():
                     continue
                 pec_surfs.extend(pec_surf)
             self.dielectrics[num] = gmsh.model.occ.cut(diel, pec_surfs, removeTool=False)[0]
 
         gmsh.model.occ.synchronize()
+
+    def ensureDielectricsDoNotOverlap(self):
+        for n1, diel1 in self.dielectrics.items():
+            others = list(
+                chain(
+                    *[x[1] for x in self.dielectrics.items() if x[0] != n1]
+                )
+            )
+
+            if len(others) == 0:
+                continue
+
+            self.dielectrics[n1] = gmsh.model.occ.cut(
+                self.dielectrics[n1], others, removeObject=True, removeTool=False)[0]
+
+        gmsh.model.occ.synchronize()
+
 
 
 def getPhysicalGrupWithName(name: str):
@@ -90,8 +114,9 @@ def getPhysicalGrupWithName(name: str):
 
 def extractBoundaries(shapes: dict):
     shape_boundaries = dict()
-    for num, bdrs in shapes.items():
-        shape_boundaries[num] = gmsh.model.getBoundary(bdrs)
+    for num, surfs in shapes.items():
+        bdrs = gmsh.model.getBoundary(surfs)
+        shape_boundaries[num] = bdrs
 
     return shape_boundaries
 
@@ -112,12 +137,32 @@ def meshFromStep(
 
     # --- Geometry manipulation ---
     # -- Domains
+    allShapes.ensureDielectricsDoNotOverlap()
     allShapes.removeConductorsFromDielectrics()
     vacuumDomain = allShapes.buildVacuumDomain()
 
     # -- Boundaries
     pec_bdrs = extractBoundaries(allShapes.pecs)
-    gmsh.model.occ.synchronize()
+    open_bdrs = extractBoundaries(allShapes.open)
+
+    if len(open_bdrs) > 1:
+        raise ValueError("Invalid number of open boundaries.")
+
+    # In semi-open problems, conductors can intersect the open region.
+    # Conductors have priority over the open boundary.    
+    if len(open_bdrs) == 1:
+        for num, pec_bdr in pec_bdrs.items():
+            overlapping = gmsh.model.occ.intersect(
+                open_bdrs[0], pec_bdr, removeObject=False, removeTool=False)[0]
+            if len(overlapping) > 0:
+                pec_bdrs[num] = overlapping
+        gmsh.model.occ.synchronize()
+
+        toRemove = [x for bdrs in pec_bdrs.values() for x in bdrs]
+        newOpenBdr = gmsh.model.occ.cut(open_bdrs[0], toRemove, removeObject=False, removeTool=False)[0]
+        open_bdrs[0] = newOpenBdr
+        gmsh.model.occ.synchronize()	    
+    
 
     # --- Physical groups ---
     # Adds boundaries.
@@ -126,7 +171,7 @@ def meshFromStep(
         tags = [x[1] for x in bdrs]
         gmsh.model.addPhysicalGroup(1, tags, name=name)
 
-    for num, bdrs in extractBoundaries(allShapes.open).items():
+    for num, bdrs in open_bdrs.items():
         name = "OpenRegion_" + str(num)
         tags = [x[1] for x in bdrs if x[1] > 0]
         gmsh.model.addPhysicalGroup(1, tags, name=name)
