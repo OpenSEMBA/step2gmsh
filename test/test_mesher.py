@@ -19,12 +19,12 @@ def countEntitiesInPhysicalGroupWithName(name: str):
 
 
 def test_getNumberFromEntityName():
-    assert (ShapesClassification.getNumberFromEntityName(
+    assert (ShapesClassification.getNumberFromName(
         'Shapes/Conductor_1',
         'Conductor_') == 1
     )
 
-    assert (ShapesClassification.getNumberFromEntityName(
+    assert (ShapesClassification.getNumberFromName(
         'Shapes/solid_wire_002/Conductor_002/Conductor_002',
         'Conductor_') == 2
     )
@@ -79,6 +79,10 @@ def test_meshFromStep_with_empty_coax():
 
 def test_two_wires_coax():
     runStepToGmsh(testdata_path, 'two_wires_coax')
+
+
+def test_two_wires_open():
+    runStepToGmsh(testdata_path, 'two_wires_open')
 
 
 def test_meshFromStep_with_two_wires_coax():
@@ -154,6 +158,10 @@ def test_three_wires_ribbon():
 
 def test_nested_coax():
     runStepToGmsh(testdata_path, 'nested_coax')
+
+
+def test_agrawal1981():
+    runStepToGmsh(testdata_path, 'agrawal1981')
 
 
 def test_stepShapes_for_partially_filled_coax():
