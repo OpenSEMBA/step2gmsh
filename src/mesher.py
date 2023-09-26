@@ -5,7 +5,7 @@ from itertools import chain
 
 DEFAULT_MESHING_OPTIONS = {
     
-    "Mesh.MshFileVersion": 2.2,
+    "Mesh.MshFileVersion": 2.2,   # Mandatory for MFEM compatibility
     "Mesh.MeshSizeFromCurvature": 40,
     "Mesh.ElementOrder": 3,
     "Mesh.ScalingFactor": 1e-3,
@@ -13,6 +13,7 @@ DEFAULT_MESHING_OPTIONS = {
     "Mesh.MeshSizeMax": 50,
 
     "General.DrawBoundingBoxes": 1,
+    "General.Axes": 1,
 
     "Geometry.SurfaceType": 2,    # Diplay surfaces as solids rather than dashed lines.
     # "Geometry.OCCBoundsUseStl": 1,
@@ -194,7 +195,7 @@ def meshFromStep(
             entsInPG.append((pG[0], ent))
 
     entsNotInPG = [x for x in allEnts if x not in entsInPG]
-    gmsh.model.remove_entities(entsNotInPG)
+    gmsh.model.remove_entities(entsNotInPG, recursive=True)
 
     # Meshing.
     for [opt, val] in meshing_options.items():
