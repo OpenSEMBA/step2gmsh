@@ -6,7 +6,7 @@ from itertools import chain
 DEFAULT_MESHING_OPTIONS = {
     
     "Mesh.MshFileVersion": 2.2,   # Mandatory for MFEM compatibility
-    "Mesh.MeshSizeFromCurvature": 40,
+    "Mesh.MeshSizeFromCurvature": 50,
     "Mesh.ElementOrder": 3,
     "Mesh.ScalingFactor": 1e-3,
     "Mesh.SurfaceFaces": 1,
@@ -156,12 +156,18 @@ def meshFromStep(
             overlapping = gmsh.model.occ.intersect(
                 open_bdrs[0], pec_bdr, removeObject=False, removeTool=False)[0]
             if len(overlapping) > 0:
-                pec_bdrs[num] = overlapping
+                frag = gmsh.model.occ.fragment(
+                    overlapping, vacuumDomain, removeObject=True, removeTool=False)[0]
+                pec_bdrs[num] = [x for x in frag if x[0] == 1]
+                vacuumDomain  = [x for x in frag if x[0] == 2]
         gmsh.model.occ.synchronize()
 
         toRemove = [x for bdrs in pec_bdrs.values() for x in bdrs]
         newOpenBdr = gmsh.model.occ.cut(open_bdrs[0], toRemove, removeObject=False, removeTool=False)[0]
-        open_bdrs[0] = newOpenBdr
+        frag = gmsh.model.occ.fragment(
+            newOpenBdr, vacuumDomain, removeObject=True, removeTool=False)[0]  
+        open_bdrs[0]  = [x for x in frag if x[0] == 1]
+        vacuumDomain  = [x for x in frag if x[0] == 2]
         gmsh.model.occ.synchronize()	    
     
 
