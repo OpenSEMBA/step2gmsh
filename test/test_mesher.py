@@ -190,9 +190,9 @@ def test_agrawal1981_meshFromStep():
     assert (countEntitiesInPhysicalGroupWithName('Dielectric_1') == 1)
     assert (countEntitiesInPhysicalGroupWithName('Dielectric_2') == 1)
     assert (countEntitiesInPhysicalGroupWithName('Dielectric_3') == 1)
-    assert (countEntitiesInPhysicalGroupWithName('Vacuum') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Vacuum') == 2)
 
-    gmsh.fltk.run()  # for debugging only.
+    # gmsh.fltk.run()  # for debugging only.
     gmsh.finalize()
 
 

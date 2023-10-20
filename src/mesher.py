@@ -1,5 +1,4 @@
 import gmsh
-import sys
 from collections import defaultdict
 from itertools import chain
 
@@ -162,14 +161,8 @@ def meshFromStep(
                 vacuumDomain  = [x for x in frag if x[0] == 2]
         gmsh.model.occ.synchronize()
 
-        toRemove = [x for bdrs in pec_bdrs.values() for x in bdrs]
-        newOpenBdr = gmsh.model.occ.cut(open_bdrs[0], toRemove, removeObject=False, removeTool=False)[0]
-        frag = gmsh.model.occ.fragment(
-            newOpenBdr, vacuumDomain, removeObject=True, removeTool=False)[0]  
-        open_bdrs[0]  = [x for x in frag if x[0] == 1]
-        vacuumDomain  = [x for x in frag if x[0] == 2]
-        gmsh.model.occ.synchronize()	    
-    
+        open_bdrs[0] = [x for x in gmsh.model.getBoundary(vacuumDomain) if x[1] > 0]
+        open_bdrs[0] = [x for x in open_bdrs[0] if x not in pec_bdrs[0]]   
 
     # --- Physical groups ---
     # Adds boundaries.
