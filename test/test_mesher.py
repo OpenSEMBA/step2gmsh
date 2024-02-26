@@ -17,6 +17,8 @@ def countEntitiesInPhysicalGroupWithName(name: str):
         )
     )
 
+def inputFileFromCaseName(case_name):
+    return testdata_path + case_name + '/' + case_name + ".step"
 
 def test_getNumberFromEntityName():
     assert (ShapesClassification.getNumberFromName(
@@ -31,13 +33,14 @@ def test_getNumberFromEntityName():
 
 
 def test_partially_filled_coax():
-    runStepToGmsh(testdata_path, 'partially_filled_coax')
+    runCase(testdata_path, 'partially_filled_coax')
 
 
 def test_meshFromStep_with_partially_filled_coax():
     gmsh.initialize()
-
-    meshFromStep(testdata_path, 'partially_filled_coax')
+    
+    case_name = 'partially_filled_coax'
+    meshFromStep(inputFileFromCaseName(case_name), case_name)
 
     pGs = gmsh.model.getPhysicalGroups()
     assert (len(pGs) == 4)
@@ -57,13 +60,14 @@ def test_meshFromStep_with_partially_filled_coax():
 
 
 def test_empty_coax():
-    runStepToGmsh(testdata_path, 'empty_coax')
+    runCase(testdata_path, 'empty_coax')
 
 
 def test_meshFromStep_with_empty_coax():
     gmsh.initialize()
 
-    meshFromStep(testdata_path, 'empty_coax')
+    case_name = 'empty_coax'
+    meshFromStep(inputFileFromCaseName(case_name), case_name)
 
     pGs = gmsh.model.getPhysicalGroups()
     pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
@@ -78,17 +82,18 @@ def test_meshFromStep_with_empty_coax():
 
 
 def test_two_wires_coax():
-    runStepToGmsh(testdata_path, 'two_wires_coax')
+    runCase(testdata_path, 'two_wires_coax')
 
 
 def test_two_wires_open():
-    runStepToGmsh(testdata_path, 'two_wires_open')
+    runCase(testdata_path, 'two_wires_open')
 
 
 def test_meshFromStep_with_two_wires_coax():
     gmsh.initialize()
 
-    meshFromStep(testdata_path, 'two_wires_coax')
+    case_name = 'two_wires_coax'
+    meshFromStep(inputFileFromCaseName(case_name), case_name)
 
     pGs = gmsh.model.getPhysicalGroups()
     assert (len(pGs) == 4)
@@ -108,14 +113,15 @@ def test_meshFromStep_with_two_wires_coax():
 
 
 def test_five_wires():
-    runStepToGmsh(testdata_path, 'five_wires')
+    runCase(testdata_path, 'five_wires')
 
 
 def test_meshFromStep_with_five_wires():
     gmsh.initialize()
 
-    meshFromStep(testdata_path, 'five_wires')
-
+    case_name = 'five_wires'
+    meshFromStep(inputFileFromCaseName(case_name), case_name)
+    
     pGs = gmsh.model.getPhysicalGroups()
     pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
 
@@ -153,15 +159,15 @@ def test_meshFromStep_with_five_wires():
 
 
 def test_three_wires_ribbon():
-    runStepToGmsh(testdata_path, 'three_wires_ribbon')
+    runCase(testdata_path, 'three_wires_ribbon')
 
 
 def test_nested_coax():
-    runStepToGmsh(testdata_path, 'nested_coax')
+    runCase(testdata_path, 'nested_coax')
 
 
 def test_agrawal1981():
-    runStepToGmsh(testdata_path, 'agrawal1981')
+    runCase(testdata_path, 'agrawal1981')
 
 
 def test_stepShapes_for_partially_filled_coax():
