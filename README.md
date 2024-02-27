@@ -6,14 +6,15 @@
 
 The main usage is to generate 2D finite element method (FEM) meshes which can be used to solve electrostatic/magnetostatic problems.
 
-# Installation
+## Installation
+
 Install requirements with
 
 ```shell
     python -m pip install -r requirements.txt
 ```
 
-# Usage
+## Usage
 
 Launch from command line as
 
@@ -32,8 +33,13 @@ Below is shown an example of a closed case with 6 conductors and 5 dielectrics, 
 ![Five wires example as modeled with FreeCAD](doc/fig/five_wires_freecad.png)
 ![Five wires example meshed with gmsh](doc/fig/five_wires_gmsh.png)
 
+## License and copyright
 
+``` step2gmsh ``` is licensed under [GNU GENERAL PUBLIC LICENSE Version 2](LICENSE), its copyright belongs to the University of Granada.
 
+## Acknowledgments
 
-# Acknowledgments
-This project is funded by the European Union under GA no 101101961 - HECATE.
+This project is funded by the following grants:
+
+- HECATE - Hybrid ElectriC regional Aircraft distribution TEchnologies. HE-HORIZON-JU-Clean-Aviation-2022-01. European Union.
+- ESAMA - Métodos numéricos avanzados para el análisis de materiales eléctricos y magnéticos en aplicaciones aerospaciales. PID2022-137495OB-C31. Spain.
