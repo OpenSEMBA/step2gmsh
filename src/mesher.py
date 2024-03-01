@@ -214,6 +214,7 @@ def runFromInput(inputFile):
     meshFromStep(inputFile, case_name, DEFAULT_MESHING_OPTIONS)   
 
     gmsh.write(case_name + '.msh')
+    gmsh.write(case_name + '.vtk')
     gmsh.finalize()
 
 def runCase(
