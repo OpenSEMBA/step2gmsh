@@ -197,8 +197,8 @@ def meshFromStep(
             entsInPG.append((pG[0], ent))
 
     entsNotInPG = [x for x in allEnts if x not in entsInPG]
-    gmsh.model.remove_entities(entsNotInPG, recursive=True)
-
+    gmsh.model.remove_entities(entsNotInPG, recursive=False)
+    
     # Meshing.
     for [opt, val] in meshing_options.items():
         gmsh.option.setNumber(opt, val)
