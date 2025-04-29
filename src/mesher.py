@@ -1,6 +1,8 @@
 import gmsh
 from collections import defaultdict
+
 from itertools import chain
+from pathlib import Path
 
 DEFAULT_MESHING_OPTIONS = {
     
@@ -121,7 +123,7 @@ def extractBoundaries(shapes: dict):
     return shape_boundaries
 
 def meshFromStep(
-        folder: str,
+        inputFile: str,
         case_name: str,
         meshing_options=DEFAULT_MESHING_OPTIONS):
     gmsh.model.add(case_name)
@@ -129,10 +131,7 @@ def meshFromStep(
     # Importing from FreeCAD generated steps.
     # STEP default units are mm.
     allShapes = ShapesClassification(
-        gmsh.model.occ.importShapes(
-            folder + case_name + '/' + case_name + '.step',
-            highestDimOnly=False
-        )
+        gmsh.model.occ.importShapes(inputFile, highestDimOnly=False)
     )
 
     # --- Geometry manipulation ---
@@ -194,8 +193,8 @@ def meshFromStep(
             entsInPG.append((pG[0], ent))
 
     entsNotInPG = [x for x in allEnts if x not in entsInPG]
-    gmsh.model.remove_entities(entsNotInPG, recursive=True)
-
+    gmsh.model.remove_entities(entsNotInPG, recursive=False)
+    
     # Meshing.
     for [opt, val] in meshing_options.items():
         gmsh.option.setNumber(opt, val)
@@ -203,14 +202,26 @@ def meshFromStep(
     gmsh.model.mesh.generate(2)
     
 
-def runStepToGmsh(
+def runFromInput(inputFile):
+    case_name = Path(inputFile).stem
+
+    gmsh.initialize()
+
+    meshFromStep(inputFile, case_name, DEFAULT_MESHING_OPTIONS)   
+
+    gmsh.write(case_name + '.msh')
+    gmsh.write(case_name + '.vtk')
+    gmsh.finalize()
+
+def runCase(
         folder: str,
         case_name: str,
         meshing_options=DEFAULT_MESHING_OPTIONS):
 
     gmsh.initialize()
 
-    meshFromStep(folder, case_name, meshing_options)
+    inputFile = folder + case_name + '/' + case_name + ".step"
+    meshFromStep(inputFile, case_name, meshing_options)
     
     gmsh.write(case_name + '.msh')
     if RUN_GUI: # for debugging only.
