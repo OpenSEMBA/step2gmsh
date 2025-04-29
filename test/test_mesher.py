@@ -50,6 +50,7 @@ def test_five_wires():
 def test_three_wires_ribbon():
     runCase(testdata_path, 'three_wires_ribbon')
 
+
 def test_nested_coax():
     runCase(testdata_path, 'nested_coax')
 
@@ -57,6 +58,7 @@ def test_agrawal1981():
     runCase(testdata_path, 'agrawal1981')
  
 def test_meshFromStep_with_partially_filled_coax():
+
     gmsh.initialize()
     
     case_name = 'partially_filled_coax'
@@ -76,8 +78,14 @@ def test_meshFromStep_with_partially_filled_coax():
     assert (len(c0ents) == 1)
 
     # gmsh.fltk.run()  # for debugging only.
-    gmsh.finalize()   
-def test_meshFromStep_with_empty_coax():
+    gmsh.finalize()
+
+
+def test_empty_coax():
+    runStepToGmsh(testdata_path, 'empty_coax')
+
+
+def test_empty_coax_meshFromStep():
     gmsh.initialize()
 
     case_name = 'empty_coax'
@@ -94,7 +102,16 @@ def test_meshFromStep_with_empty_coax():
     # gmsh.fltk.run()  # for debugging only.
     gmsh.finalize()
 
-def test_meshFromStep_with_two_wires_coax():
+
+def test_two_wires_coax():
+    runStepToGmsh(testdata_path, 'two_wires_coax')
+
+
+def test_two_wires_open():
+    runStepToGmsh(testdata_path, 'two_wires_open')
+
+
+def test_two_wires_coax_meshFromStep():
     gmsh.initialize()
 
     case_name = 'two_wires_coax'
@@ -130,6 +147,7 @@ def test_meshFromStep_with_two_wires_coax_new():
     assert ('Conductor_1' in pGNames)
     assert ('Conductor_2' in pGNames)
     assert ('Vacuum' in pGNames)
+
 
     assert (countEntitiesInPhysicalGroupWithName('Conductor_0') == 1)
     assert (countEntitiesInPhysicalGroupWithName('Conductor_1') == 1)
@@ -299,7 +317,39 @@ def test_meshFromStep_with_agrawal1981():
     # gmsh.fltk.run()  # for debugging only.
     gmsh.finalize()
 
-def test_stepShapes_for_partially_filled_coax():
+def test_agrawal1981_meshFromStep():
+    gmsh.initialize()
+
+    meshFromStep(testdata_path, 'agrawal1981')
+
+    pGs = gmsh.model.getPhysicalGroups()
+    pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
+
+    assert ('Conductor_0' in pGNames)
+    assert ('Conductor_1' in pGNames)
+    assert ('Conductor_2' in pGNames)
+    assert ('Conductor_3' in pGNames)
+    assert ('OpenRegion_0' in pGNames)
+    assert ('Dielectric_1' in pGNames)
+    assert ('Dielectric_2' in pGNames)
+    assert ('Dielectric_3' in pGNames)
+    assert ('Vacuum' in pGNames)
+
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_0') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_1') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_2') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Conductor_3') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('OpenRegion_0') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Dielectric_1') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Dielectric_2') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Dielectric_3') == 1)
+    assert (countEntitiesInPhysicalGroupWithName('Vacuum') == 2)
+
+    # gmsh.fltk.run()  # for debugging only.
+    gmsh.finalize()
+
+
+def test_partially_filled_coax_stepShapes():
     case_name = 'partially_filled_coax'
 
     gmsh.initialize()
@@ -316,7 +366,7 @@ def test_stepShapes_for_partially_filled_coax():
     assert (len(stepShapes.dielectrics) == 1)
 
 
-def test_stepShapes_for_five_wires():
+def test_five_wires_stepShapes():
     case_name = 'five_wires'
 
     gmsh.initialize()
@@ -333,7 +383,7 @@ def test_stepShapes_for_five_wires():
     assert (len(stepShapes.dielectrics) == 5)
 
 
-def test_stepShapes_for_three_wires_ribbon():
+def test_three_wires_ribbon_stepShapes():
     case_name = 'three_wires_ribbon'
 
     gmsh.initialize()
