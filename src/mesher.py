@@ -127,12 +127,13 @@ def meshFromStep(
         case_name: str,
         meshing_options=DEFAULT_MESHING_OPTIONS):
     gmsh.model.add(case_name)
-
+    
     # Importing from FreeCAD generated steps.
     # STEP default units are mm.
     allShapes = ShapesClassification(
         gmsh.model.occ.importShapes(inputFile, highestDimOnly=False)
     )
+    testing(allShapes)
 
     # --- Geometry manipulation ---
     # -- Domains
@@ -206,7 +207,6 @@ def runFromInput(inputFile):
     case_name = Path(inputFile).stem
 
     gmsh.initialize()
-
     meshFromStep(inputFile, case_name, DEFAULT_MESHING_OPTIONS)   
 
     gmsh.write(case_name + '.msh')
@@ -228,3 +228,12 @@ def runCase(
         gmsh.fltk.run()
 
     gmsh.finalize()
+
+def testing(allShapes):
+    elementNames = []
+    shapes = allShapes.allShapes
+    for shape in allShapes.allShapes:
+        elementNames.append([gmsh.model.get_entity_name(*shape), shape])
+
+    nodes = gmsh.model.occ.get_entities()
+    a=1
