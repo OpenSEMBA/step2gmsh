@@ -1,6 +1,7 @@
+from typing import Tuple
 import gmsh
 from collections import defaultdict
-
+from src.OpenCase import BoundingBox, OpenMultiwire
 from itertools import chain
 from pathlib import Path
 
@@ -60,36 +61,32 @@ class ShapesClassification:
 
     def isOpenProblem(self):
         elements = list(chain(self.pecs.values()))
-        overlaps = []
         for idx, element in enumerate(elements):
             for otheridx, otherElement in enumerate(elements[idx+1:]):
-                intersect = None
                 if element != otherElement:
                     intersect = gmsh.model.occ.intersect(
                         element, 
                         otherElement,
-                        tag=(100+otheridx),
+                        tag=(300+otheridx),
                         removeObject=False, 
                         removeTool=False
                     )[0]
-
-                if intersect:
-                    overlaps.append(intersect)
-        
-        gmsh.model.occ.synchronize()
-        for overlap in overlaps:
-            print_entity_info(*overlap[0])
-        return len(overlaps) == 0
+                    if intersect:
+                        return False   
+        return True
 
     def buildVacuumDomain(self):
         if self.isOpenOrSemiOpenProblem():
-            dom = self.open[0]
+            dom = self.buildOpenVacuumDomain()
         else:
-            dom = self.pecs[0]
-
+            dom = self.buildClosedVacuumDomain()
+        return dom
+    
+    def buildClosedVacuumDomain(self) -> Tuple[int, int]:
+        dom = self.pecs[0]
         surfsToRemove = []
         for num, surf in self.pecs.items():
-            if num == 0 and self.isOpenOrSemiOpenProblem() == False:
+            if num == 0:
                 continue
             surfsToRemove.extend(surf)
 
@@ -98,14 +95,43 @@ class ShapesClassification:
         dom = gmsh.model.occ.cut(
             dom, surfsToRemove, removeObject=False, removeTool=False)[0]
         gmsh.model.occ.synchronize()
-
         return dom
+    
+    def buildOpenVacuumDomain(self):
+        nonVacuumSurfaces = []
+        for _, surf in self.pecs.items():
+            nonVacuumSurfaces.extend(surf)
+        for _, surf in self.dielectrics.items():
+            nonVacuumSurfaces.extend(surf)
+
+        boundingBox = OpenMultiwire.getBoundingBoxFromGroup(nonVacuumSurfaces)
+        boundingBoxCenter = boundingBox.getCenter()
+        boundingBoxDiagonal = boundingBox.getDiagonal()
+
+        nearVacuumDiameter = boundingBoxDiagonal
+        nearVacuum = [(2, gmsh.model.occ.addDisk(*boundingBoxCenter, nearVacuumDiameter, nearVacuumDiameter))]
+
+        farVacuumDiameter = 10*boundingBoxDiagonal
+        farVacuum = [(2, gmsh.model.occ.addDisk(*boundingBoxCenter, farVacuumDiameter, farVacuumDiameter))]
+        
+        gmsh.model.occ.synchronize()
+
+        farVacuum = gmsh.model.occ.cut(
+            farVacuum, nearVacuum, removeObject=False, removeTool=False)[0]
+
+        nearVacuum = gmsh.model.occ.cut(
+            farVacuum, nonVacuumSurfaces, removeObject=False, removeTool=False)[0]
+        
+        gmsh.model.occ.synchronize()
+
+        return [nearVacuum, farVacuum]
+    
     
     def removeConductorsFromDielectrics(self):
         for num, diel in self.dielectrics.items():
             pec_surfs = []
             for num2, pec_surf in self.pecs.items():
-                if num2 == 0 and not self.isOpenOrSemiOpenProblem():
+                if num2 == 0 and not self.isOpenProblem():
                     continue
                 pec_surfs.extend(pec_surf)
             self.dielectrics[num] = gmsh.model.occ.cut(diel, pec_surfs, removeTool=False)[0]
@@ -158,8 +184,6 @@ def meshFromStep(
 
     # --- Geometry manipulation ---
     # -- Domains
-    gmsh.model.occ.synchronize()
-    allShapes.isOpenProblem()
     allShapes.ensureDielectricsDoNotOverlap()
     allShapes.removeConductorsFromDielectrics()
     vacuumDomain = allShapes.buildVacuumDomain()

@@ -19,6 +19,11 @@ class BoundingBox():
             (self.edges['ymax'] + self.edges['ymin']) / 2,
             (self.edges['zmax'] + self.edges['zmin']) / 2
         )
+    def getDiagonal(self) -> float:
+        dx = self.edges['xmax'] - self.edges['xmin']
+        dy = self.edges['ymax'] - self.edges['ymin']
+        dz = self.edges['zmax'] - self.edges['zmin']
+        return (dx**2 + dy**2 + dz**2) ** 0.5
 
         
 class OpenMultiwire():
