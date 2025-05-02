@@ -29,7 +29,6 @@ class ShapesClassification:
         gmsh.model.occ.synchronize()
 
         self.allShapes = shapes
-
         self.pecs = self.get_surfaces_with_label(shapes, "Conductor_")
         self.dielectrics = self.get_surfaces_with_label(shapes, "Dielectric_")
         self.open = self.get_surfaces_with_label(shapes, "OpenRegion_")
@@ -57,26 +56,29 @@ class ShapesClassification:
 
     
     def isOpenOrSemiOpenProblem(self):
-        return len(self.open) == 0
+        return len(self.open) != 0
 
-    def isOpenOrSemiOpenProblem(self):
-        gmsh.model.occ.synchronize()
+    def isOpenProblem(self):
         elements = list(chain(self.pecs.values()))
         overlaps = []
         for idx, element in enumerate(elements):
-            print_entity_info(*element[0])
-            for otherElement in elements:
-                intersection = None
+            for otheridx, otherElement in enumerate(elements[idx+1:]):
+                intersect = None
                 if element != otherElement:
-                    intersection = gmsh.model.occ.intersect(
+                    intersect = gmsh.model.occ.intersect(
                         element, 
-                        otherElement, 
+                        otherElement,
+                        tag=(100+otheridx),
                         removeObject=False, 
                         removeTool=False
                     )[0]
 
-                if intersection:
-                    overlaps.append(intersection)
+                if intersect:
+                    overlaps.append(intersect)
+        
+        gmsh.model.occ.synchronize()
+        for overlap in overlaps:
+            print_entity_info(*overlap[0])
         return len(overlaps) == 0
 
     def buildVacuumDomain(self):
@@ -93,7 +95,6 @@ class ShapesClassification:
 
         for _, surf in self.dielectrics.items():
             surfsToRemove.extend(surf)
-
         dom = gmsh.model.occ.cut(
             dom, surfsToRemove, removeObject=False, removeTool=False)[0]
         gmsh.model.occ.synchronize()
@@ -157,6 +158,8 @@ def meshFromStep(
 
     # --- Geometry manipulation ---
     # -- Domains
+    gmsh.model.occ.synchronize()
+    allShapes.isOpenProblem()
     allShapes.ensureDielectricsDoNotOverlap()
     allShapes.removeConductorsFromDielectrics()
     vacuumDomain = allShapes.buildVacuumDomain()
@@ -249,14 +252,6 @@ def runCase(
 
     gmsh.finalize()
 
-def testing(allShapes):
-    elementNames = []
-    shapes = allShapes.allShapes
-    for shape in allShapes.allShapes:
-        elementNames.append([gmsh.model.get_entity_name(*shape), shape])
-
-    nodes = gmsh.model.occ.get_entities()
-    a=1
 
 def print_entity_info(dim, tag):
     print(f"--- Entity (dim={dim}, tag={tag}) ---")
