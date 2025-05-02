@@ -55,8 +55,29 @@ class ShapesClassification:
 
         return surfaces
 
+    
     def isOpenOrSemiOpenProblem(self):
-        return len(self.open) != 0
+        return len(self.open) == 0
+
+    def isOpenOrSemiOpenProblem(self):
+        gmsh.model.occ.synchronize()
+        elements = list(chain(self.pecs.values()))
+        overlaps = []
+        for idx, element in enumerate(elements):
+            print_entity_info(*element[0])
+            for otherElement in elements:
+                intersection = None
+                if element != otherElement:
+                    intersection = gmsh.model.occ.intersect(
+                        element, 
+                        otherElement, 
+                        removeObject=False, 
+                        removeTool=False
+                    )[0]
+
+                if intersection:
+                    overlaps.append(intersection)
+        return len(overlaps) == 0
 
     def buildVacuumDomain(self):
         if self.isOpenOrSemiOpenProblem():
@@ -133,7 +154,6 @@ def meshFromStep(
     allShapes = ShapesClassification(
         gmsh.model.occ.importShapes(inputFile, highestDimOnly=False)
     )
-    testing(allShapes)
 
     # --- Geometry manipulation ---
     # -- Domains
@@ -237,3 +257,43 @@ def testing(allShapes):
 
     nodes = gmsh.model.occ.get_entities()
     a=1
+
+def print_entity_info(dim, tag):
+    print(f"--- Entity (dim={dim}, tag={tag}) ---")
+    
+    # Name (if any)
+    name = gmsh.model.get_entity_name(dim, tag)
+    print(f"Name: {name if name else '(none)'}")
+    
+    # Type (e.g., 'Point', 'Line', 'Surface', 'Volume')
+    entity_type = gmsh.model.get_type(dim, tag)
+    print(f"Type: {entity_type}")
+    
+    # Bounding box
+    bbox = gmsh.model.get_bounding_box(dim, tag)
+    print(f"Bounding box: xmin={bbox[0]}, ymin={bbox[1]}, zmin={bbox[2]}, xmax={bbox[3]}, ymax={bbox[4]}, zmax={bbox[5]}")
+    
+    # Physical groups
+    phys_groups = []
+    for d in range(4):
+        for pg in gmsh.model.getPhysicalGroups(d):
+            if tag in gmsh.model.getEntitiesForPhysicalGroup(pg[0], pg[1]):
+                phys_groups.append((pg[0], pg[1], gmsh.model.getPhysicalName(pg[0], pg[1])))
+    print(f"Physical groups: {phys_groups if phys_groups else '(none)'}")
+    
+    # Parent entities
+    parents = gmsh.model.get_adjacencies(dim, tag)[0]
+    print(f"Parent entities: {parents if parents else '(none)'}")
+    
+    # Child entities
+    children = gmsh.model.get_adjacencies(dim, tag)[1]
+    print(f"Child entities: {children}")
+    
+    # Mesh nodes (if mesh exists)
+    try:
+        node_tags, node_coords, _ = gmsh.model.mesh.getNodes(dim, tag)
+        print(f"Number of mesh nodes: {len(node_tags)}")
+    except Exception as e:
+        print("Mesh nodes: (not available)")
+    
+    print("-----------------------------\n")
