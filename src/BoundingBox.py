@@ -1,6 +1,6 @@
 from typing import Tuple, List, Dict
 import gmsh
-import utils
+from . import utils
 
 class BoundingBox():
     edges: Dict[str, float]

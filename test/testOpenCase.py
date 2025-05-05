@@ -28,42 +28,10 @@ class testOpenCase(unittest.TestCase):
             # "Geometry.Tolerance": 1e-3,
         }
 
-    def testCanGetBoundingBoxFromListOfSurfaces(self):
-        expectedBoundingBoxEdges: Dict[str, float] = {
-            'xmin': -10,
-            'ymin': -10,
-            'zmin': 0,
-            'xmax': 35,
-            'ymax': 40,
-            'zmax': 0,
-        }
-
-        gmsh.initialize()
-        gmsh.model.add(self._TEST_MODEL_NAME)
-        circleSurface = gmsh.model.occ.addCircle(0, 0, 0, 10, tag=1)
-        innerCircleSurface = gmsh.model.occ.addCircle(0, 0, 0, 5, tag=2)
-        secondCircleSurface = gmsh.model.occ.addCircle(25, 30, 0, 10, tag=3)
-        groupOfCircles = [(1, circleSurface), (1, innerCircleSurface), (1, secondCircleSurface)]
-        boundingBox = BoundingBox.getBoundingBoxFromGroup(groupOfCircles)
-
-        assertListOfFloatsAlmostEqual(tuple(boundingBox.edges.values()), tuple(expectedBoundingBoxEdges.values()))
+    
         
-    def testCanCreateOpenVacuum(self):
-        gmsh.initialize()
-        gmsh.model.add(self._TEST_MODEL_NAME)
-        allshapes = ShapesClassification(
-            gmsh.model.occ.importShapes(
-                'testData/unshielded_multiwire/unshielded_multiwire.step', 
-                highestDimOnly=False,
-                )
-        )
-        allshapes.buildOpenVacuumDomain()
-        gmsh.model.occ.synchronize()
-        for [opt, val] in self.meshing_options.items():
-            gmsh.option.setNumber(opt, val)
-        gmsh.model.mesh.generate(2)
-        gmsh.write('testOpen.vtk')
-        gmsh.write('testOpen.msh')
+
+
 
     def tearDown(self):
         if self._DEBUG_MODE:

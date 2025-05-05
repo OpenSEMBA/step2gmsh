@@ -2,13 +2,8 @@
 
 import sys
 import argparse
-
-if __name__ == '__main__':
-    sys.path.insert(0, '.')
-    from mesher import Mesher
-else:
-    from src.mesher import Mesher
-
+from src.mesher import Mesher
+    
 def launcher(fn):
     mesher = Mesher()
     mesher.runFromInput(fn)

@@ -36,3 +36,23 @@ class testBoundingBox(unittest.TestCase):
         boundingBox = BoundingBox._getBoundingBox((1,circleSurface))
 
         utils.assertListOfFloatsAlmostEqual(tuple(boundingBox.edges.values()), tuple(expectedBoundingBoxEdges.values()))
+    
+    def testCanGetBoundingBoxFromListOfSurfaces(self):
+        expectedBoundingBoxEdges: Dict[str, float] = {
+            'xmin': -10,
+            'ymin': -10,
+            'zmin': 0,
+            'xmax': 35,
+            'ymax': 40,
+            'zmax': 0,
+        }
+
+        gmsh.initialize()
+        gmsh.model.add(self._TEST_MODEL_NAME)
+        circleSurface = gmsh.model.occ.addCircle(0, 0, 0, 10, tag=1)
+        innerCircleSurface = gmsh.model.occ.addCircle(0, 0, 0, 5, tag=2)
+        secondCircleSurface = gmsh.model.occ.addCircle(25, 30, 0, 10, tag=3)
+        groupOfCircles = [(1, circleSurface), (1, innerCircleSurface), (1, secondCircleSurface)]
+        boundingBox = BoundingBox.getBoundingBoxFromGroup(groupOfCircles)
+
+        utils.assertListOfFloatsAlmostEqual(tuple(boundingBox.edges.values()), tuple(expectedBoundingBoxEdges.values()))

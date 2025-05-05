@@ -4,7 +4,7 @@ from collections import defaultdict
 from itertools import chain
 from pathlib import Path
 from typing import Any, Tuple, List, Dict
-from ShapesClassification import ShapesClassification
+from .ShapesClassification import ShapesClassification
 
 class Mesher():
     DEFAULT_MESHING_OPTIONS = {
@@ -40,7 +40,7 @@ class Mesher():
 
     def meshFromStep(self, inputFile: str, caseName: str, meshingOptions=None):
         if meshingOptions is None:
-            meshingOptions = self.DEFAULT_MESHING_OPTIONS
+            meshingOptions = Mesher.DEFAULT_MESHING_OPTIONS
 
         gmsh.model.add(caseName)
         allShapes = ShapesClassification(
@@ -53,7 +53,11 @@ class Mesher():
         vacuumDomain = allShapes.buildVacuumDomain()
         # -- Boundaries
         pecBoundaries = self.extractBoundaries(allShapes.pecs)
-        vacuumBoundaries = self.extractBoundaries(allShapes.vacuum)
+
+        if allShapes.isOpenCase:
+            vacuumBoundaries = self.extractBoundaries(allShapes.vacuum)
+        else:
+            vacuumBoundaries = None
 
         self.buildPhysicalModel(pecBoundaries, allShapes.dielectrics, vacuumDomain, vacuumBoundaries)
         
@@ -66,7 +70,8 @@ class Mesher():
         self._addPhysicalGroup("Conductor_", pecBoundaries, dimensionTag=1)
         self._addPhysicalGroup("Dielectric_", dielectrics, dimensionTag=2)
         self._addPhysicalGroup("Vacuum_", vacuumDomain, dimensionTag=2)
-        self._addPhysicalGroup("VacuumBoundaries_", vacuumBoundaries, dimensionTag=1)
+        if vacuumBoundaries:
+            self._addPhysicalGroup("VacuumBoundaries_", vacuumBoundaries, dimensionTag=1)
 
         allEnts = gmsh.model.get_entities()
         entsInPG = []
@@ -84,7 +89,8 @@ class Mesher():
             tags = [x[1] for x in bdrs]
             gmsh.model.addPhysicalGroup(dimensionTag, tags, name=name)
 
-    def getPhysicalGroupWithName(self, name: str):
+    @staticmethod
+    def getPhysicalGroupWithName(name: str):
         pGs = gmsh.model.getPhysicalGroups()
         for pG in pGs:
             if gmsh.model.getPhysicalName(*pG) == name:
@@ -97,17 +103,15 @@ class Mesher():
             shapeBoundaries[num] = bdrs
         return shapeBoundaries
 
-    def runCase(self, folder: str, caseName: str, meshingOptions=None):
-        if meshingOptions is None:
-            meshingOptions = self.DEFAULT_MESHING_OPTIONS
-
+    @classmethod
+    def runCase(cls, folder: str, caseName: str, meshingOptions=None):
         gmsh.initialize()
         inputFile = folder + caseName + '/' + caseName + ".step"
-        self.meshFromStep(inputFile, caseName, meshingOptions)
+        mesher=Mesher()
+        mesher.meshFromStep(inputFile, caseName, meshingOptions)
         
         gmsh.write(caseName + '.msh')
-        if self.runGui:
-            gmsh.fltk.run()
+
         gmsh.finalize()
 
 def print_entity_info(dim, tag):

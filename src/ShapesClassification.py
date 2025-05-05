@@ -1,7 +1,7 @@
 from typing import Any, Tuple, List, Dict
 
 import gmsh
-from BoundingBox import BoundingBox
+from .BoundingBox import BoundingBox
 from itertools import chain
 
 class ShapesClassification:
