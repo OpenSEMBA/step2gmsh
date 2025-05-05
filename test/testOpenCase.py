@@ -28,11 +28,6 @@ class testOpenCase(unittest.TestCase):
             # "Geometry.Tolerance": 1e-3,
         }
 
-    
-        
-
-
-
     def tearDown(self):
         if self._DEBUG_MODE:
             gmsh.fltk.run()

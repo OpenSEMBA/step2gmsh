@@ -173,7 +173,6 @@ class TestMesher(unittest.TestCase):
                             1, 1, 1, 
                             1, 13, 2, 
                             2, 1]
-        gmsh.fltk.run()
         self.assertEqual(sorted(pGNames), sorted(expectedNames))
 
         for idx, name in enumerate(expectedNames):

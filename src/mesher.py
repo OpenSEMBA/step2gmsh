@@ -25,7 +25,7 @@ class Mesher():
         # "Geometry.Tolerance": 1e-3,
     }
 
-    def runFromInput(self, inputFile, runGui=True):
+    def runFromInput(self, inputFile, runGui=False):
         caseName = Path(inputFile).stem
 
         gmsh.initialize()
