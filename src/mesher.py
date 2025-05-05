@@ -4,8 +4,7 @@ from collections import defaultdict
 from itertools import chain
 from pathlib import Path
 from typing import Any, Tuple, List, Dict
-from src import utils
-from src.ShapesClassification import ShapesClassification
+from ShapesClassification import ShapesClassification
 
 class Mesher():
     DEFAULT_MESHING_OPTIONS = {
@@ -26,7 +25,7 @@ class Mesher():
         # "Geometry.Tolerance": 1e-3,
     }
 
-    def runFromInput(self, inputFile, runGui=False):
+    def runFromInput(self, inputFile, runGui=True):
         caseName = Path(inputFile).stem
 
         gmsh.initialize()
@@ -52,46 +51,22 @@ class Mesher():
         allShapes.ensureDielectricsDoNotOverlap()
         allShapes.removeConductorsFromDielectrics()
         vacuumDomain = allShapes.buildVacuumDomain()
-
         # -- Boundaries
-        pecBdrs = self.extractBoundaries(allShapes.pecs)
-        openBdrs = self.extractBoundaries(allShapes.open)
-        vacuumBdrs = self.extractBoundaries(allShapes.vacuum)
+        pecBoundaries = self.extractBoundaries(allShapes.pecs)
+        vacuumBoundaries = self.extractBoundaries(allShapes.vacuum)
 
-        if len(openBdrs) > 1:
-            raise ValueError("Invalid number of open boundaries.")
+        self.buildPhysicalModel(pecBoundaries, allShapes.dielectrics, vacuumDomain, vacuumBoundaries)
+        
+        for [opt, val] in meshingOptions.items():
+            gmsh.option.setNumber(opt, val)
 
-        if len(openBdrs) == 1:
-            for num, pecBdr in pecBdrs.items():
-                overlapping = gmsh.model.occ.intersect(
-                    openBdrs[0], pecBdr, removeObject=False, removeTool=False)[0]
-                if len(overlapping) > 0:
-                    frag = gmsh.model.occ.fragment(
-                        overlapping, vacuumDomain, removeObject=True, removeTool=False)[0]
-                    pecBdrs[num] = [x for x in frag if x[0] == 1]
-                    vacuumDomain  = [x for x in frag if x[0] == 2]
-            gmsh.model.occ.synchronize()
+        gmsh.model.mesh.generate(2)
 
-            openBdrs[0] = [x for x in gmsh.model.getBoundary(vacuumDomain) if x[1] > 0]
-            openBdrs[0] = [x for x in openBdrs[0] if x not in pecBdrs[0]]   
-
-        # --- Physical groups ---
-        for num, bdrs in pecBdrs.items():
-            name = "Conductor_" + str(num)
-            tags = [x[1] for x in bdrs]
-            gmsh.model.addPhysicalGroup(1, tags, name=name)
-
-        for num, bdrs in openBdrs.items():
-            name = "OpenRegion_" + str(num)
-            tags = [x[1] for x in bdrs if x[1] > 0]
-            gmsh.model.addPhysicalGroup(1, tags, name=name)
-
-        gmsh.model.addPhysicalGroup(2, [x[1] for x  in vacuumDomain], name='Vacuum')
-
-        for num, surfs in allShapes.dielectrics.items():
-            name = "Dielectric_" + str(num)
-            tags = [x[1] for x in surfs]
-            gmsh.model.addPhysicalGroup(2, tags, name=name)
+    def buildPhysicalModel(self, pecBoundaries, dielectrics, vacuumDomain, vacuumBoundaries):
+        self._addPhysicalGroup("Conductor_", pecBoundaries, dimensionTag=1)
+        self._addPhysicalGroup("Dielectric_", dielectrics, dimensionTag=2)
+        self._addPhysicalGroup("Vacuum_", vacuumDomain, dimensionTag=2)
+        self._addPhysicalGroup("VacuumBoundaries_", vacuumBoundaries, dimensionTag=1)
 
         allEnts = gmsh.model.get_entities()
         entsInPG = []
@@ -99,14 +74,15 @@ class Mesher():
             ents = gmsh.model.getEntitiesForPhysicalGroup(pG[0], pG[1])
             for ent in ents:
                 entsInPG.append((pG[0], ent))
-
+        
         entsNotInPG = [x for x in allEnts if x not in entsInPG]
         gmsh.model.remove_entities(entsNotInPG, recursive=False)
-        
-        for [opt, val] in meshingOptions.items():
-            gmsh.option.setNumber(opt, val)
 
-        gmsh.model.mesh.generate(2)
+    def _addPhysicalGroup(self, physicalGroupName:str, elementsDict:Dict, dimensionTag=1):
+        for num, bdrs in elementsDict.items():
+            name = physicalGroupName + str(num)
+            tags = [x[1] for x in bdrs]
+            gmsh.model.addPhysicalGroup(dimensionTag, tags, name=name)
 
     def getPhysicalGroupWithName(self, name: str):
         pGs = gmsh.model.getPhysicalGroups()

@@ -5,11 +5,12 @@ import argparse
 
 if __name__ == '__main__':
     sys.path.insert(0, '.')
-    import mesher
+    from mesher import Mesher
 else:
-    import src.mesher as mesher
+    from src.mesher import Mesher
 
 def launcher(fn):
+    mesher = Mesher()
     mesher.runFromInput(fn)
     
 

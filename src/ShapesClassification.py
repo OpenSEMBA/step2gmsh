@@ -1,10 +1,13 @@
 from typing import Any, Tuple, List, Dict
 
 import gmsh
-from src.BoundingBox import BoundingBox
+from BoundingBox import BoundingBox
 from itertools import chain
 
 class ShapesClassification:
+    isOpenCase:bool
+
+
     def __init__(self, shapes):
         gmsh.model.occ.synchronize()
 
@@ -12,7 +15,9 @@ class ShapesClassification:
         self.pecs = self.get_surfaces_with_label(shapes, "Conductor_")
         self.dielectrics = self.get_surfaces_with_label(shapes, "Dielectric_")
         self.open = self.get_surfaces_with_label(shapes, "OpenRegion_")
-        self.vacuum = []
+        self.vacuum = dict()
+
+        self.isOpenCase = self.isOpenProblem()
 
         if len(self.open) > 1:
             raise ValueError("Only one open region is allowed.")
@@ -43,8 +48,8 @@ class ShapesClassification:
                     intersect = gmsh.model.occ.intersect(
                         element, 
                         otherElement,
-                        tag=(300+otheridx),
-                        removeObject=False, 
+                        removeObject=False,
+                        tag=300+otheridx,
                         removeTool=False
                     )[0]
                     if intersect:
@@ -55,7 +60,7 @@ class ShapesClassification:
         for num, diel in self.dielectrics.items():
             pec_surfs = []
             for num2, pec_surf in self.pecs.items():
-                if num2 == 0 and not self.isOpenProblem():
+                if num2 == 0 and not self.isOpenCase:
                     continue
                 pec_surfs.extend(pec_surf)
             self.dielectrics[num] = gmsh.model.occ.cut(diel, pec_surfs, removeTool=False)[0]
@@ -79,13 +84,11 @@ class ShapesClassification:
         gmsh.model.occ.synchronize()
 
     def buildVacuumDomain(self):
-        if self.isOpenOrSemiOpenProblem():
-            vacuumDomain = self._buildOpenVacuumDomain()
+        if self.isOpenCase:
+            self.vacuum = self._buildOpenVacuumDomain()
         else:
-            vacuumDomain = self._buildClosedVacuumDomain()
-
-        self.vacuum = list(*vacuumDomain)
-        return vacuumDomain
+            self.vacuum = self._buildClosedVacuumDomain()
+        return self.vacuum
     
     def _buildClosedVacuumDomain(self) -> Tuple[int, int]:
         dom = self.pecs[0]
@@ -100,7 +103,7 @@ class ShapesClassification:
         dom = gmsh.model.occ.cut(
             dom, surfsToRemove, removeObject=False, removeTool=False)[0]
         gmsh.model.occ.synchronize()
-        return dom
+        return dict([[0, dom]])
     
     def _buildOpenVacuumDomain(self):
         nonVacuumSurfaces = []
@@ -129,6 +132,6 @@ class ShapesClassification:
         
         gmsh.model.occ.synchronize()
 
-        return [nearVacuum, farVacuum]
+        return dict([[0, nearVacuum], [1, farVacuum]])
     
     
