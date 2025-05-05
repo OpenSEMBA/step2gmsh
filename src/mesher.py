@@ -1,281 +1,138 @@
 from typing import Tuple
 import gmsh
 from collections import defaultdict
-from src.OpenCase import BoundingBox, OpenMultiwire
 from itertools import chain
 from pathlib import Path
+from typing import Any, Tuple, List, Dict
+from src import utils
+from src.ShapesClassification import ShapesClassification
 
-DEFAULT_MESHING_OPTIONS = {
+class Mesher():
+    DEFAULT_MESHING_OPTIONS = {
     
-    "Mesh.MshFileVersion": 2.2,   # Mandatory for MFEM compatibility
-    "Mesh.MeshSizeFromCurvature": 50,
-    "Mesh.ElementOrder": 3,
-    "Mesh.ScalingFactor": 1e-3,
-    "Mesh.SurfaceFaces": 1,
-    "Mesh.MeshSizeMax": 50,
+        "Mesh.MshFileVersion": 2.2,   # Mandatory for MFEM compatibility
+        "Mesh.MeshSizeFromCurvature": 50,
+        "Mesh.ElementOrder": 3,
+        "Mesh.ScalingFactor": 1e-3,
+        "Mesh.SurfaceFaces": 1,
+        "Mesh.MeshSizeMax": 50,
 
-    "General.DrawBoundingBoxes": 1,
-    "General.Axes": 1,
+        "General.DrawBoundingBoxes": 1,
+        "General.Axes": 1,
 
-    "Geometry.SurfaceType": 2,    # Diplay surfaces as solids rather than dashed lines.
-    # "Geometry.OCCBoundsUseStl": 1,
-    # "Geometry.OCCSewFaces": 1,
-    # "Geometry.Tolerance": 1e-3,
-}
+        "Geometry.SurfaceType": 2,    # Diplay surfaces as solids rather than dashed lines.
+        # "Geometry.OCCBoundsUseStl": 1,
+        # "Geometry.OCCSewFaces": 1,
+        # "Geometry.Tolerance": 1e-3,
+    }
 
-RUN_GUI=False
+    def runFromInput(self, inputFile, runGui=False):
+        caseName = Path(inputFile).stem
 
-class ShapesClassification:
-    def __init__(self, shapes):
-        gmsh.model.occ.synchronize()
+        gmsh.initialize()
+        self.meshFromStep(inputFile, caseName, self.DEFAULT_MESHING_OPTIONS)   
 
-        self.allShapes = shapes
-        self.pecs = self.get_surfaces_with_label(shapes, "Conductor_")
-        self.dielectrics = self.get_surfaces_with_label(shapes, "Dielectric_")
-        self.open = self.get_surfaces_with_label(shapes, "OpenRegion_")
+        gmsh.write(caseName + '.msh')
+        gmsh.write(caseName + '.vtk')
+        if runGui:
+            gmsh.fltk.run()
 
-        if len(self.open) > 1:
-            raise ValueError("Only one open region is allowed.")
+        gmsh.finalize()
 
-    @staticmethod
-    def getNumberFromName(entity_name: str, label: str):
-        ini = entity_name.rindex(label) + len(label)
-        num = int(entity_name[ini:])
-        return num
+    def meshFromStep(self, inputFile: str, caseName: str, meshingOptions=None):
+        if meshingOptions is None:
+            meshingOptions = self.DEFAULT_MESHING_OPTIONS
 
-    @staticmethod
-    def get_surfaces_with_label(entity_tags, label: str):
-        surfaces = dict()
-        for s in entity_tags:
-            name = gmsh.model.get_entity_name(*s)
-            if s[0] != 2 or label not in name:
-                continue
-            num = ShapesClassification.getNumberFromName(name, label)
-            surfaces[num] = [s]
+        gmsh.model.add(caseName)
+        allShapes = ShapesClassification(
+            gmsh.model.occ.importShapes(inputFile, highestDimOnly=False)
+        )
 
-        return surfaces
+        # --- Geometry manipulation ---
+        allShapes.ensureDielectricsDoNotOverlap()
+        allShapes.removeConductorsFromDielectrics()
+        vacuumDomain = allShapes.buildVacuumDomain()
 
-    
-    def isOpenOrSemiOpenProblem(self):
-        return len(self.open) != 0
+        # -- Boundaries
+        pecBdrs = self.extractBoundaries(allShapes.pecs)
+        openBdrs = self.extractBoundaries(allShapes.open)
+        vacuumBdrs = self.extractBoundaries(allShapes.vacuum)
 
-    def isOpenProblem(self):
-        elements = list(chain(self.pecs.values()))
-        for idx, element in enumerate(elements):
-            for otheridx, otherElement in enumerate(elements[idx+1:]):
-                if element != otherElement:
-                    intersect = gmsh.model.occ.intersect(
-                        element, 
-                        otherElement,
-                        tag=(300+otheridx),
-                        removeObject=False, 
-                        removeTool=False
-                    )[0]
-                    if intersect:
-                        return False   
-        return True
+        if len(openBdrs) > 1:
+            raise ValueError("Invalid number of open boundaries.")
 
-    def buildVacuumDomain(self):
-        if self.isOpenOrSemiOpenProblem():
-            dom = self.buildOpenVacuumDomain()
-        else:
-            dom = self.buildClosedVacuumDomain()
-        return dom
-    
-    def buildClosedVacuumDomain(self) -> Tuple[int, int]:
-        dom = self.pecs[0]
-        surfsToRemove = []
-        for num, surf in self.pecs.items():
-            if num == 0:
-                continue
-            surfsToRemove.extend(surf)
+        if len(openBdrs) == 1:
+            for num, pecBdr in pecBdrs.items():
+                overlapping = gmsh.model.occ.intersect(
+                    openBdrs[0], pecBdr, removeObject=False, removeTool=False)[0]
+                if len(overlapping) > 0:
+                    frag = gmsh.model.occ.fragment(
+                        overlapping, vacuumDomain, removeObject=True, removeTool=False)[0]
+                    pecBdrs[num] = [x for x in frag if x[0] == 1]
+                    vacuumDomain  = [x for x in frag if x[0] == 2]
+            gmsh.model.occ.synchronize()
 
-        for _, surf in self.dielectrics.items():
-            surfsToRemove.extend(surf)
-        dom = gmsh.model.occ.cut(
-            dom, surfsToRemove, removeObject=False, removeTool=False)[0]
-        gmsh.model.occ.synchronize()
-        return dom
-    
-    def buildOpenVacuumDomain(self):
-        nonVacuumSurfaces = []
-        for _, surf in self.pecs.items():
-            nonVacuumSurfaces.extend(surf)
-        for _, surf in self.dielectrics.items():
-            nonVacuumSurfaces.extend(surf)
+            openBdrs[0] = [x for x in gmsh.model.getBoundary(vacuumDomain) if x[1] > 0]
+            openBdrs[0] = [x for x in openBdrs[0] if x not in pecBdrs[0]]   
 
-        boundingBox = OpenMultiwire.getBoundingBoxFromGroup(nonVacuumSurfaces)
-        boundingBoxCenter = boundingBox.getCenter()
-        boundingBoxDiagonal = boundingBox.getDiagonal()
+        # --- Physical groups ---
+        for num, bdrs in pecBdrs.items():
+            name = "Conductor_" + str(num)
+            tags = [x[1] for x in bdrs]
+            gmsh.model.addPhysicalGroup(1, tags, name=name)
 
-        nearVacuumDiameter = boundingBoxDiagonal
-        nearVacuum = [(2, gmsh.model.occ.addDisk(*boundingBoxCenter, nearVacuumDiameter, nearVacuumDiameter))]
+        for num, bdrs in openBdrs.items():
+            name = "OpenRegion_" + str(num)
+            tags = [x[1] for x in bdrs if x[1] > 0]
+            gmsh.model.addPhysicalGroup(1, tags, name=name)
 
-        farVacuumDiameter = 10*boundingBoxDiagonal
-        farVacuum = [(2, gmsh.model.occ.addDisk(*boundingBoxCenter, farVacuumDiameter, farVacuumDiameter))]
+        gmsh.model.addPhysicalGroup(2, [x[1] for x  in vacuumDomain], name='Vacuum')
+
+        for num, surfs in allShapes.dielectrics.items():
+            name = "Dielectric_" + str(num)
+            tags = [x[1] for x in surfs]
+            gmsh.model.addPhysicalGroup(2, tags, name=name)
+
+        allEnts = gmsh.model.get_entities()
+        entsInPG = []
+        for pG in gmsh.model.get_physical_groups():
+            ents = gmsh.model.getEntitiesForPhysicalGroup(pG[0], pG[1])
+            for ent in ents:
+                entsInPG.append((pG[0], ent))
+
+        entsNotInPG = [x for x in allEnts if x not in entsInPG]
+        gmsh.model.remove_entities(entsNotInPG, recursive=False)
         
-        gmsh.model.occ.synchronize()
+        for [opt, val] in meshingOptions.items():
+            gmsh.option.setNumber(opt, val)
 
-        farVacuum = gmsh.model.occ.cut(
-            farVacuum, nearVacuum, removeObject=False, removeTool=False)[0]
+        gmsh.model.mesh.generate(2)
 
-        nearVacuum = gmsh.model.occ.cut(
-            farVacuum, nonVacuumSurfaces, removeObject=False, removeTool=False)[0]
+    def getPhysicalGroupWithName(self, name: str):
+        pGs = gmsh.model.getPhysicalGroups()
+        for pG in pGs:
+            if gmsh.model.getPhysicalName(*pG) == name:
+                return pG
+
+    def extractBoundaries(self, shapes: dict):
+        shapeBoundaries = dict()
+        for num, surfs in shapes.items():
+            bdrs = gmsh.model.getBoundary(surfs)
+            shapeBoundaries[num] = bdrs
+        return shapeBoundaries
+
+    def runCase(self, folder: str, caseName: str, meshingOptions=None):
+        if meshingOptions is None:
+            meshingOptions = self.DEFAULT_MESHING_OPTIONS
+
+        gmsh.initialize()
+        inputFile = folder + caseName + '/' + caseName + ".step"
+        self.meshFromStep(inputFile, caseName, meshingOptions)
         
-        gmsh.model.occ.synchronize()
-
-        return [nearVacuum, farVacuum]
-    
-    
-    def removeConductorsFromDielectrics(self):
-        for num, diel in self.dielectrics.items():
-            pec_surfs = []
-            for num2, pec_surf in self.pecs.items():
-                if num2 == 0 and not self.isOpenProblem():
-                    continue
-                pec_surfs.extend(pec_surf)
-            self.dielectrics[num] = gmsh.model.occ.cut(diel, pec_surfs, removeTool=False)[0]
-
-        gmsh.model.occ.synchronize()
-
-    def ensureDielectricsDoNotOverlap(self):
-        for n1, diel1 in self.dielectrics.items():
-            others = list(
-                chain(
-                    *[x[1] for x in self.dielectrics.items() if x[0] != n1]
-                )
-            )
-
-            if len(others) == 0:
-                continue
-
-            self.dielectrics[n1] = gmsh.model.occ.cut(
-                self.dielectrics[n1], others, removeObject=True, removeTool=False)[0]
-
-        gmsh.model.occ.synchronize()
-
-
-
-def getPhysicalGrupWithName(name: str):
-    pGs = gmsh.model.getPhysicalGroups()
-    for pG in pGs:
-        if gmsh.model.getPhysicalName(*pG) == name:
-            return pG
-
-def extractBoundaries(shapes: dict):
-    shape_boundaries = dict()
-    for num, surfs in shapes.items():
-        bdrs = gmsh.model.getBoundary(surfs)
-        shape_boundaries[num] = bdrs
-
-    return shape_boundaries
-
-def meshFromStep(
-        inputFile: str,
-        case_name: str,
-        meshing_options=DEFAULT_MESHING_OPTIONS):
-    gmsh.model.add(case_name)
-    
-    # Importing from FreeCAD generated steps.
-    # STEP default units are mm.
-    allShapes = ShapesClassification(
-        gmsh.model.occ.importShapes(inputFile, highestDimOnly=False)
-    )
-
-    # --- Geometry manipulation ---
-    # -- Domains
-    allShapes.ensureDielectricsDoNotOverlap()
-    allShapes.removeConductorsFromDielectrics()
-    vacuumDomain = allShapes.buildVacuumDomain()
-
-    # -- Boundaries
-    pec_bdrs = extractBoundaries(allShapes.pecs)
-    open_bdrs = extractBoundaries(allShapes.open)
-
-    if len(open_bdrs) > 1:
-        raise ValueError("Invalid number of open boundaries.")
-
-    # In semi-open problems, conductors can intersect the open region.
-    # Conductors have priority over the open boundary.    
-    if len(open_bdrs) == 1:
-        for num, pec_bdr in pec_bdrs.items():
-            overlapping = gmsh.model.occ.intersect(
-                open_bdrs[0], pec_bdr, removeObject=False, removeTool=False)[0]
-            if len(overlapping) > 0:
-                frag = gmsh.model.occ.fragment(
-                    overlapping, vacuumDomain, removeObject=True, removeTool=False)[0]
-                pec_bdrs[num] = [x for x in frag if x[0] == 1]
-                vacuumDomain  = [x for x in frag if x[0] == 2]
-        gmsh.model.occ.synchronize()
-
-        open_bdrs[0] = [x for x in gmsh.model.getBoundary(vacuumDomain) if x[1] > 0]
-        open_bdrs[0] = [x for x in open_bdrs[0] if x not in pec_bdrs[0]]   
-
-    # --- Physical groups ---
-    # Adds boundaries.
-    for num, bdrs in pec_bdrs.items():
-        name = "Conductor_" + str(num)
-        tags = [x[1] for x in bdrs]
-        gmsh.model.addPhysicalGroup(1, tags, name=name)
-
-    for num, bdrs in open_bdrs.items():
-        name = "OpenRegion_" + str(num)
-        tags = [x[1] for x in bdrs if x[1] > 0]
-        gmsh.model.addPhysicalGroup(1, tags, name=name)
-
-    # Domains.
-    gmsh.model.addPhysicalGroup(2, [x[1] for x  in vacuumDomain], name='Vacuum')
-
-    for num, surfs in allShapes.dielectrics.items():
-        name = "Dielectric_" + str(num)
-        tags = [x[1] for x in surfs]
-        gmsh.model.addPhysicalGroup(2, tags, name=name)
-
-    # Removes entities which are not at least in one physical group.
-    allEnts = gmsh.model.get_entities()
-
-    entsInPG = []
-    for pG in gmsh.model.get_physical_groups():
-        ents = gmsh.model.getEntitiesForPhysicalGroup(pG[0], pG[1])
-        for ent in ents:
-            entsInPG.append((pG[0], ent))
-
-    entsNotInPG = [x for x in allEnts if x not in entsInPG]
-    gmsh.model.remove_entities(entsNotInPG, recursive=False)
-    
-    # Meshing.
-    for [opt, val] in meshing_options.items():
-        gmsh.option.setNumber(opt, val)
-
-    gmsh.model.mesh.generate(2)
-    
-
-def runFromInput(inputFile):
-    case_name = Path(inputFile).stem
-
-    gmsh.initialize()
-    meshFromStep(inputFile, case_name, DEFAULT_MESHING_OPTIONS)   
-
-    gmsh.write(case_name + '.msh')
-    gmsh.write(case_name + '.vtk')
-    gmsh.finalize()
-
-def runCase(
-        folder: str,
-        case_name: str,
-        meshing_options=DEFAULT_MESHING_OPTIONS):
-
-    gmsh.initialize()
-
-    inputFile = folder + case_name + '/' + case_name + ".step"
-    meshFromStep(inputFile, case_name, meshing_options)
-    
-    gmsh.write(case_name + '.msh')
-    if RUN_GUI: # for debugging only.
-        gmsh.fltk.run()
-
-    gmsh.finalize()
-
+        gmsh.write(caseName + '.msh')
+        if self.runGui:
+            gmsh.fltk.run()
+        gmsh.finalize()
 
 def print_entity_info(dim, tag):
     print(f"--- Entity (dim={dim}, tag={tag}) ---")
