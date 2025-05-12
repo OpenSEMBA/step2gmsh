@@ -67,6 +67,8 @@ class TestMesher(unittest.TestCase):
     def test_mesh_from_step_with_empty_coax(self):
         caseName = 'empty_coax'
         Mesher().meshFromStep(self.inputFileFromCaseName(caseName), caseName)
+        gmsh.write(caseName + '.msh')
+        gmsh.write(caseName + '.vtk')
 
         pGs = gmsh.model.getPhysicalGroups()
         pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
@@ -165,8 +167,9 @@ class TestMesher(unittest.TestCase):
     def test_mesh_from_step_with_agrawal1981(self):
         caseName = 'agrawal1981'
         Mesher().meshFromStep(self.inputFileFromCaseName(caseName), caseName)
-        
-        gmsh.write(caseName + '.vtk')
+        # gmsh.write(caseName + '.msh')
+        # gmsh.write(caseName + '.vtk')
+        # gmsh.fltk.run()
 
         pGs = gmsh.model.getPhysicalGroups()
         pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
@@ -177,7 +180,7 @@ class TestMesher(unittest.TestCase):
         expectedEntities = [4, 1, 1, 1, 
                             1,
                             1, 1, 1,
-                            1]
+                            2]
         
         for idx, name in enumerate(expectedNames):
             self.assertEqual(self.countEntitiesInPhysicalGroupWithName(name), expectedEntities[idx], name)
@@ -223,9 +226,11 @@ class TestMesher(unittest.TestCase):
         pGs = gmsh.model.getPhysicalGroups()
         pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
         expectedNames = ['Conductor_0', 'Conductor_1',  'Dielectric_1', 
-                         'VacuumBoundaries_0', 'VacuumBoundaries_1', 'Vacuum_0', 'Vacuum_1']
-        expectedEntities = [1, 1, 1, 
-                            3, 2, 1, 1]
+                         'OpenRegion_0',
+                         'Vacuum_0', 'Vacuum_1']
+        expectedEntities = [1, 1, 1,
+                            1,
+                            1, 1]
         self.assertEqual(sorted(pGNames), sorted(expectedNames))
 
         for idx, name in enumerate(expectedNames):

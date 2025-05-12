@@ -148,6 +148,8 @@ class ShapesClassification:
         nearVacuum = gmsh.model.occ.cut(
             nearVacuum, nonVacuumSurfaces, removeObject=True, removeTool=False)[0]
         
+        self.open = dict([[0, gmsh.model.getBoundary(farVacuum)]])
+
         gmsh.model.occ.synchronize()
 
         return dict([[0, nearVacuum], [1, farVacuum]])

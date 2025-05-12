@@ -69,8 +69,8 @@ class Mesher():
     def buildPhysicalModel(self, pecBoundaries, dielectrics, openRegion, vacuumDomain):
         self._addPhysicalGroup("Conductor_", pecBoundaries, dimensionTag=1)
         self._addPhysicalGroup("OpenRegion_", openRegion, dimensionTag=1)
-        self._addPhysicalGroup("Dielectric_", dielectrics, dimensionTag=2)
         self._addPhysicalGroup("Vacuum_", vacuumDomain, dimensionTag=2)
+        self._addPhysicalGroup("Dielectric_", dielectrics, dimensionTag=2)
 
         allEnts = gmsh.model.get_entities()
         entsInPG = []
