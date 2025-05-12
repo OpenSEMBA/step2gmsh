@@ -54,24 +54,23 @@ class Mesher():
         # -- Boundaries
         pecBoundaries = self.extractBoundaries(allShapes.pecs)
 
-        if allShapes.isOpenCase:
-            vacuumBoundaries = self.extractBoundaries(allShapes.vacuum)
-        else:
-            vacuumBoundaries = None
-
-        self.buildPhysicalModel(pecBoundaries, allShapes.dielectrics, vacuumDomain, vacuumBoundaries)
+        self.buildPhysicalModel(
+            pecBoundaries, 
+            allShapes.dielectrics,
+            allShapes.open,
+            vacuumDomain
+        )
         
         for [opt, val] in meshingOptions.items():
             gmsh.option.setNumber(opt, val)
 
         gmsh.model.mesh.generate(2)
 
-    def buildPhysicalModel(self, pecBoundaries, dielectrics, vacuumDomain, vacuumBoundaries):
+    def buildPhysicalModel(self, pecBoundaries, dielectrics, openRegion, vacuumDomain):
         self._addPhysicalGroup("Conductor_", pecBoundaries, dimensionTag=1)
-        self._addPhysicalGroup("Dielectric_", dielectrics, dimensionTag=2)
+        self._addPhysicalGroup("OpenBoundary_", openRegion, dimensionTag=1)
         self._addPhysicalGroup("Vacuum_", vacuumDomain, dimensionTag=2)
-        if vacuumBoundaries:
-            self._addPhysicalGroup("VacuumBoundaries_", vacuumBoundaries, dimensionTag=1)
+        self._addPhysicalGroup("Dielectric_", dielectrics, dimensionTag=2)
 
         allEnts = gmsh.model.get_entities()
         entsInPG = []
@@ -83,10 +82,10 @@ class Mesher():
         entsNotInPG = [x for x in allEnts if x not in entsInPG]
         gmsh.model.remove_entities(entsNotInPG, recursive=False)
 
-    def _addPhysicalGroup(self, physicalGroupName:str, elementsDict:Dict, dimensionTag=1):
-        for num, bdrs in elementsDict.items():
+    def _addPhysicalGroup(self, physicalGroupName:str, objsDict:Dict, dimensionTag=1):
+        for num, objs in objsDict.items():
             name = physicalGroupName + str(num)
-            tags = [x[1] for x in bdrs]
+            tags = [x[1] for x in objs]
             gmsh.model.addPhysicalGroup(dimensionTag, tags, name=name)
 
     @staticmethod

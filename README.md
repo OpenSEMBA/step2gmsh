@@ -26,7 +26,7 @@ The tested input step files have been generated with [FreeCAD](https://www.freec
 
 - A layer named `Conductor_N` with `N` being an integer represents a perfect conductor. `Conductor_0` is a special case of which represents the ground and defines the global domain. For layers named `Conductor_N` with `N` different to zero their areas will be substracted from the computational domain and removed.
 - Layers named as `Dielectric_N` are used to identify regions which will have a material assigned.
-- Open and semi-open problems can be defined using a single layer called `OpenRegion`.
+- Open and semi-open problems can be defined using a single layer called `OpenBoundary`.
 
 Below is shown an example of a closed case with 6 conductors and 5 dielectrics, the external boundary corresponds to `Conductor_0`. The case is modeled with FreeCAD and can be found in the `testData/five_wires` folder together with the exported as a step file. The resulting mesh after applying `step2gmsh` is shown below.
 

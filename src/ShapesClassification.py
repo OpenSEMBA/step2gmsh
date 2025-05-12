@@ -14,7 +14,7 @@ class ShapesClassification:
         self.allShapes = shapes
         self.pecs = self.get_surfaces_with_label(shapes, "Conductor_")
         self.dielectrics = self.get_surfaces_with_label(shapes, "Dielectric_")
-        self.open = self.get_surfaces_with_label(shapes, "OpenRegion_")
+        self.open = self.get_surfaces_with_label(shapes, "OpenBoundary_")
         self.vacuum = dict()
 
         self.isOpenCase = self.isOpenProblem()
@@ -84,11 +84,29 @@ class ShapesClassification:
         gmsh.model.occ.synchronize()
 
     def buildVacuumDomain(self):
-        if self.isOpenCase:
+        if self.isOpenCase and len(self.open) == 0:
+            self.vacuum = self._buildDefaultVacuumDomain()
+        elif self.isOpenCase and len(self.open) > 0:
             self.vacuum = self._buildOpenVacuumDomain()
         else:
             self.vacuum = self._buildClosedVacuumDomain()
         return self.vacuum
+    
+    def _buildOpenVacuumDomain(self) -> Dict[int, List[int]]:
+        dom = self.open[0]
+        
+        surfsToRemove = []
+        for num, surf in self.pecs.items():
+            surfsToRemove.extend(surf)
+
+        for _, surf in self.dielectrics.items():
+            surfsToRemove.extend(surf)
+
+        dom = gmsh.model.occ.cut(
+            dom, surfsToRemove, removeObject=False, removeTool=False)[0]
+        gmsh.model.occ.synchronize()
+
+        return dict([[0, dom]])
     
     def _buildClosedVacuumDomain(self) -> Tuple[int, int]:
         dom = self.pecs[0]
@@ -105,13 +123,13 @@ class ShapesClassification:
         gmsh.model.occ.synchronize()
         return dict([[0, dom]])
     
-    def _buildOpenVacuumDomain(self):
+    def _buildDefaultVacuumDomain(self):
         nonVacuumSurfaces = []
         for _, surf in self.pecs.items():
             nonVacuumSurfaces.extend(surf)
         for _, surf in self.dielectrics.items():
             nonVacuumSurfaces.extend(surf)
-
+            
         boundingBox = BoundingBox.getBoundingBoxFromGroup(nonVacuumSurfaces)
         boundingBoxCenter = boundingBox.getCenter()
         boundingBoxDiagonal = boundingBox.getDiagonal()
@@ -130,6 +148,8 @@ class ShapesClassification:
         nearVacuum = gmsh.model.occ.cut(
             nearVacuum, nonVacuumSurfaces, removeObject=True, removeTool=False)[0]
         
+        self.open = dict([[0, gmsh.model.getBoundary(farVacuum)]])
+
         gmsh.model.occ.synchronize()
 
         return dict([[0, nearVacuum], [1, farVacuum]])
