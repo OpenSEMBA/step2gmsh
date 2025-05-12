@@ -14,7 +14,7 @@ class ShapesClassification:
         self.allShapes = shapes
         self.pecs = self.get_surfaces_with_label(shapes, "Conductor_")
         self.dielectrics = self.get_surfaces_with_label(shapes, "Dielectric_")
-        self.open = self.get_surfaces_with_label(shapes, "OpenRegion_")
+        self.open = self.get_surfaces_with_label(shapes, "OpenBoundary_")
         self.vacuum = dict()
 
         self.isOpenCase = self.isOpenProblem()

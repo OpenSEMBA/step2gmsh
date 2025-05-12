@@ -98,7 +98,7 @@ class TestMesher(unittest.TestCase):
 
         pGs = gmsh.model.getPhysicalGroups()
         pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
-        expectedNames = ['Conductor_0', 'Conductor_1', 'OpenRegion_0', 'Vacuum_0']
+        expectedNames = ['Conductor_0', 'Conductor_1', 'OpenBoundary_0', 'Vacuum_0']
         self.assertEqual(sorted(pGNames), sorted(expectedNames))
 
         expectedEntities = [1,1,1,1]
@@ -136,7 +136,7 @@ class TestMesher(unittest.TestCase):
         pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
         expectedNames = [
             'Conductor_0', 'Conductor_1', 'Conductor_2', 
-            'OpenRegion_0',
+            'OpenBoundary_0',
             'Dielectric_0', 'Dielectric_1', 'Dielectric_2', 
             'Vacuum_0'
         ]
@@ -174,7 +174,7 @@ class TestMesher(unittest.TestCase):
         pGs = gmsh.model.getPhysicalGroups()
         pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
         expectedNames = ['Conductor_0', 'Conductor_1', 'Conductor_2', 'Conductor_3',
-                         'OpenRegion_0',  
+                         'OpenBoundary_0',  
                          'Dielectric_1', 'Dielectric_2', 'Dielectric_3',  
                          'Vacuum_0']
         expectedEntities = [4, 1, 1, 1, 
@@ -226,7 +226,7 @@ class TestMesher(unittest.TestCase):
         pGs = gmsh.model.getPhysicalGroups()
         pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
         expectedNames = ['Conductor_0', 'Conductor_1',  'Dielectric_1', 
-                         'OpenRegion_0',
+                         'OpenBoundary_0',
                          'Vacuum_0', 'Vacuum_1']
         expectedEntities = [1, 1, 1,
                             1,
