@@ -1,3 +1,4 @@
+from typing import List
 import unittest
 import os
 import numpy as np
@@ -5,6 +6,12 @@ import gmsh
 from src.mesher import Mesher
 from src.AreaExporterService import AreaExporterService
 class testAreaExporterService(unittest.TestCase):
+    @staticmethod
+    def sumAreasFromList(areas:List[float]):
+        total:float = 0
+        for area in areas:
+            total += area
+        return total
 
     @classmethod
     def setUpClass(cls):
@@ -26,6 +33,13 @@ class testAreaExporterService(unittest.TestCase):
         areaExporter.addPhysicalModelOfDimension(dimension=1)
         areaExporter.addPhysicalModelOfDimension(dimension=2)
         geometries = areaExporter.computedAreas['geometries']
-        vacuumArea = [x['area'] for x in geometries if x['geometry'] == 'Vacuum_0']
-        otherAreas = [x['area'] for x in geometries if x['geometry'] != 'Vacuum_0']
-        a=1
+
+        internalElements = []
+        for geometry in geometries:
+            if geometry['geometry'] == "Conductor_0":
+                totalArea = geometry['area']
+            else:
+                internalElements.append(geometry['area'])
+        areaElements = self.sumAreasFromList(internalElements)
+
+        self.assertAlmostEqual(totalArea, areaElements)

@@ -1,9 +1,7 @@
 from typing import Tuple
 import gmsh
-from collections import defaultdict
-from itertools import chain
 from pathlib import Path
-from typing import Any, Tuple, List, Dict
+from typing import Dict
 
 from src.AreaExporterService import AreaExporterService
 from .ShapesClassification import ShapesClassification
