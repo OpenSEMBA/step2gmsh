@@ -1,9 +1,9 @@
 from typing import Tuple
 import gmsh
-from collections import defaultdict
-from itertools import chain
 from pathlib import Path
-from typing import Any, Tuple, List, Dict
+from typing import Dict
+
+from src.AreaExporterService import AreaExporterService
 from .ShapesClassification import ShapesClassification
 
 class Mesher():
@@ -29,8 +29,8 @@ class Mesher():
         caseName = Path(inputFile).stem
 
         gmsh.initialize()
-        self.meshFromStep(inputFile, caseName, self.DEFAULT_MESHING_OPTIONS)   
-
+        self.meshFromStep(inputFile, caseName, self.DEFAULT_MESHING_OPTIONS)
+        self.exportGeometryAreas(caseName)
         gmsh.write(caseName + '.msh')
         gmsh.write(caseName + '.vtk')
         if runGui:
@@ -66,6 +66,13 @@ class Mesher():
 
         gmsh.model.mesh.generate(2)
 
+    def exportGeometryAreas(self, caseName:str):
+        exporter = AreaExporterService()
+        exporter.addPhysicalModelOfDimension(dimension=2)
+        exporter.addPhysicalModelOfDimension(dimension=1)
+        exporter.exportToJson(caseName)
+            
+
     def buildPhysicalModel(self, pecBoundaries, dielectrics, openRegion, vacuumDomain):
         self._addPhysicalGroup("Conductor_", pecBoundaries, dimensionTag=1)
         self._addPhysicalGroup("OpenBoundary_", openRegion, dimensionTag=1)
@@ -81,12 +88,15 @@ class Mesher():
         
         entsNotInPG = [x for x in allEnts if x not in entsInPG]
         gmsh.model.remove_entities(entsNotInPG, recursive=False)
+        gmsh.model.occ.synchronize()
+
 
     def _addPhysicalGroup(self, physicalGroupName:str, objsDict:Dict, dimensionTag=1):
         for num, objs in objsDict.items():
             name = physicalGroupName + str(num)
             tags = [x[1] for x in objs]
             gmsh.model.addPhysicalGroup(dimensionTag, tags, name=name)
+            
 
     @staticmethod
     def getPhysicalGroupWithName(name: str):
