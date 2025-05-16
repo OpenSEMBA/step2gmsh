@@ -30,7 +30,7 @@ class Mesher():
 
         gmsh.initialize()
         self.meshFromStep(inputFile, caseName, self.DEFAULT_MESHING_OPTIONS)
-        self.exportgeomtryAreas(caseName)
+        self.exportGeometryAreas(caseName)
         gmsh.write(caseName + '.msh')
         gmsh.write(caseName + '.vtk')
         if runGui:
@@ -66,7 +66,7 @@ class Mesher():
 
         gmsh.model.mesh.generate(2)
 
-    def exportgeomtryAreas(self, caseName:str):
+    def exportGeometryAreas(self, caseName:str):
         exporter = AreaExporterService()
         exporter.addPhysicalModelOfDimension(dimension=2)
         exporter.addPhysicalModelOfDimension(dimension=1)

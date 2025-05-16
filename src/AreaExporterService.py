@@ -33,5 +33,5 @@ class AreaExporterService:
                     self.addComputedArea(geometryName, area)
 
     def exportToJson(self, exportFileName:str):
-        with open(exportFileName + ".json", 'w') as f:
+        with open(exportFileName + ".areas.json", 'w') as f:
             json.dump(self.computedAreas, f, indent=3)
