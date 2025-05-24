@@ -223,6 +223,8 @@ class TestMesher(unittest.TestCase):
         caseName = 'unshielded_multiwire'
         Mesher().meshFromStep(self.inputFileFromCaseName(caseName), caseName)
         
+        gmsh.write(caseName + '.vtk')
+
         pGs = gmsh.model.getPhysicalGroups()
         pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
         expectedNames = ['Conductor_0', 'Conductor_1',  'Dielectric_1', 

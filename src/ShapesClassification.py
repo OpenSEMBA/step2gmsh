@@ -3,6 +3,7 @@ from typing import Any, Tuple, List, Dict
 import gmsh
 from .BoundingBox import BoundingBox
 from itertools import chain
+import numpy as np
 
 class ShapesClassification:
     isOpenCase:bool
@@ -87,12 +88,12 @@ class ShapesClassification:
         if self.isOpenCase and len(self.open) == 0:
             self.vacuum = self._buildDefaultVacuumDomain()
         elif self.isOpenCase and len(self.open) > 0:
-            self.vacuum = self._buildOpenVacuumDomain()
+            self.vacuum = self._buildVacuumDomainFromOpenBoundary()
         else:
             self.vacuum = self._buildClosedVacuumDomain()
         return self.vacuum
     
-    def _buildOpenVacuumDomain(self) -> Dict[int, List[int]]:
+    def _buildVacuumDomainFromOpenBoundary(self) -> Dict[int, List[int]]:
         dom = self.open[0]
         
         surfsToRemove = []
@@ -131,14 +132,18 @@ class ShapesClassification:
             nonVacuumSurfaces.extend(surf)
             
         boundingBox = BoundingBox.getBoundingBoxFromGroup(nonVacuumSurfaces)
-        boundingBoxCenter = boundingBox.getCenter()
-        boundingBoxDiagonal = boundingBox.getDiagonal()
 
-        nearVacuumDiameter = boundingBoxDiagonal
-        nearVacuum = [(2, gmsh.model.occ.addDisk(*boundingBoxCenter, nearVacuumDiameter, nearVacuumDiameter))]
+    
+        bbMaxLength = np.max(boundingBox.getLengths())
+        nVOrigin = tuple(
+            np.subtract(boundingBox.getCenter(), 
+                        (bbMaxLength, bbMaxLength, 0.0)))
+        nearVacuum = [(2, gmsh.model.occ.addRectangle(*nVOrigin, *(bbMaxLength*2.0,)*2))]
 
-        farVacuumDiameter = 4*boundingBoxDiagonal
-        farVacuum = [(2, gmsh.model.occ.addDisk(*boundingBoxCenter, farVacuumDiameter, farVacuumDiameter))]
+        farVacuumDiameter = 4.0 * boundingBox.getDiagonal()
+        farVacuum = [(2, gmsh.model.occ.addDisk(
+            *boundingBox.getCenter(), 
+            farVacuumDiameter, farVacuumDiameter))]
         
         gmsh.model.occ.synchronize()
 
@@ -148,8 +153,16 @@ class ShapesClassification:
         nearVacuum = gmsh.model.occ.cut(
             nearVacuum, nonVacuumSurfaces, removeObject=True, removeTool=False)[0]
         
-        self.open = dict([[0, gmsh.model.getBoundary(farVacuum)]])
+        # -- Set mesh size for near vacuum region
+        bb = BoundingBox(
+            gmsh.model.getBoundingBox(2, nearVacuum[0][1]))
+        minSide = np.min(np.array([bb.getLengths()[0], bb.getLengths()[1]]))
 
+        innerRegion = gmsh.model.getBoundary(nearVacuum, recursive=True)
+        gmsh.model.mesh.setSize(innerRegion, minSide / 20)
+        
+        
+        self.open = dict([[0, gmsh.model.getBoundary(farVacuum)]])
         gmsh.model.occ.synchronize()
 
         return dict([[0, nearVacuum], [1, farVacuum]])

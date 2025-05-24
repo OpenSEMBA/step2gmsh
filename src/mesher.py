@@ -5,16 +5,18 @@ from typing import Dict
 
 from src.AreaExporterService import AreaExporterService
 from .ShapesClassification import ShapesClassification
+from .BoundingBox import BoundingBox
+import numpy as np
 
 class Mesher():
     DEFAULT_MESHING_OPTIONS = {
     
-        "Mesh.MshFileVersion": 2.2,   # Mandatory for MFEM compatibility
+        "Mesh.MshFileVersion": 2.2,   # Required for MFEM compatibility
         "Mesh.MeshSizeFromCurvature": 50,
         "Mesh.ElementOrder": 3,
         "Mesh.ScalingFactor": 1e-3,
         "Mesh.SurfaceFaces": 1,
-        "Mesh.MeshSizeMax": 50,
+        "Mesh.MeshSizeMax": 40,
 
         "General.DrawBoundingBoxes": 1,
         "General.Axes": 1,
@@ -32,7 +34,7 @@ class Mesher():
         self.meshFromStep(inputFile, caseName, self.DEFAULT_MESHING_OPTIONS)
         self.exportGeometryAreas(caseName)
         gmsh.write(caseName + '.msh')
-        gmsh.write(caseName + '.vtk')
+        gmsh.write(caseName + '.vtk') # vtk export is just for debugging. 
         if runGui:
             gmsh.fltk.run()
 
@@ -64,6 +66,8 @@ class Mesher():
         for [opt, val] in meshingOptions.items():
             gmsh.option.setNumber(opt, val)
 
+        # --- Mesh generation ---
+        
         gmsh.model.mesh.generate(2)
 
     def exportGeometryAreas(self, caseName:str):
