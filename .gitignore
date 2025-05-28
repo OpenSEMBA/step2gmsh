@@ -2,3 +2,7 @@
 *.pyc
 *.msh
 .vscode/
+tmpFolder/
+venv/
+gmshDoc/
+*.vtk
