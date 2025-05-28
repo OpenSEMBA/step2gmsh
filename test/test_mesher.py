@@ -223,6 +223,8 @@ class TestMesher(unittest.TestCase):
         caseName = 'unshielded_multiwire'
         Mesher().meshFromStep(self.inputFileFromCaseName(caseName), caseName)
         
+        gmsh.write(caseName + '.vtk')
+
         pGs = gmsh.model.getPhysicalGroups()
         pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
         expectedNames = ['Conductor_0', 'Conductor_1',  'Dielectric_1', 
@@ -235,6 +237,28 @@ class TestMesher(unittest.TestCase):
 
         for idx, name in enumerate(expectedNames):
             self.assertEqual(self.countEntitiesInPhysicalGroupWithName(name), expectedEntities[idx], name)
+
+    def test_lansink2024_single_wire_multipolar(self):
+        caseName = 'lansink2024_single_wire_multipolar'
+        Mesher().meshFromStep(self.inputFileFromCaseName(caseName), caseName)
+        
+        gmsh.write(caseName + '.msh')
+        gmsh.write(caseName + '.vtk')
+
+        pGs = gmsh.model.getPhysicalGroups()
+        pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
+        expectedNames = ['Conductor_0', 
+                         'Dielectric_0', 
+                         'OpenBoundary_0',
+                         'Vacuum_0', 'Vacuum_1']
+        expectedEntities = [1, 1, 1,
+                            1,
+                            1, 1]
+        self.assertEqual(sorted(pGNames), sorted(expectedNames))
+
+        for idx, name in enumerate(expectedNames):
+            self.assertEqual(self.countEntitiesInPhysicalGroupWithName(name), expectedEntities[idx], name)
+
 
 if __name__ == '__main__':
     unittest.main()

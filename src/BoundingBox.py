@@ -4,27 +4,41 @@ from . import utils
 
 class BoundingBox():
     edges: Dict[str, float]
-    def __init__(self, listOfCoordinates:Tuple[int, int, int, int, int, int]):
+    def __init__(self, listOfCoordinates:Tuple[float,float,float,float,float,float]):
         self.edges = {
-                'xmin': listOfCoordinates[0],
-                'ymin': listOfCoordinates[1],
-                'zmin': listOfCoordinates[2],
-                'xmax': listOfCoordinates[3],
-                'ymax': listOfCoordinates[4],
-                'zmax': listOfCoordinates[5],
+                'XMin': listOfCoordinates[0],
+                'YMin': listOfCoordinates[1],
+                'ZMin': listOfCoordinates[2],
+                'XMax': listOfCoordinates[3],
+                'YMax': listOfCoordinates[4],
+                'ZMax': listOfCoordinates[5],
             }
         
+    def getOrigin(self) -> Tuple[float,float,float]:
+        return (
+            self.edges['XMin'],
+            self.edges['YMin'],
+            self.edges['ZMin']
+        )
+
     def getCenter(self) -> Tuple[float,float,float]:
         return (
-            (self.edges['xmax'] + self.edges['xmin']) / 2,
-            (self.edges['ymax'] + self.edges['ymin']) / 2,
-            (self.edges['zmax'] + self.edges['zmin']) / 2
+            (self.edges['XMax'] + self.edges['XMin']) / 2,
+            (self.edges['YMax'] + self.edges['YMin']) / 2,
+            (self.edges['ZMax'] + self.edges['ZMin']) / 2
         )
     def getDiagonal(self) -> float:
-        dx = self.edges['xmax'] - self.edges['xmin']
-        dy = self.edges['ymax'] - self.edges['ymin']
-        dz = self.edges['zmax'] - self.edges['zmin']
+        dx = self.edges['XMax'] - self.edges['XMin']
+        dy = self.edges['YMax'] - self.edges['YMin']
+        dz = self.edges['ZMax'] - self.edges['ZMin']
         return (dx**2 + dy**2 + dz**2) ** 0.5
+    
+    def getLengths(self) -> Tuple[float, float, float]:
+        return (
+            self.edges['XMax'] - self.edges['XMin'],
+            self.edges['YMax'] - self.edges['YMin'],
+            self.edges['ZMax'] - self.edges['ZMin']
+        )
     
     @staticmethod
     def _getBoundingBox(element:Tuple[int,int]) -> 'BoundingBox':
@@ -39,12 +53,12 @@ class BoundingBox():
         
         if len(boundingBoxs) != 0:
             edges: Dict[str, List[float]] = {
-                'xmin': [],
-                'ymin': [],
-                'zmin': [],
-                'xmax': [],
-                'ymax': [],
-                'zmax': [],
+                'XMin': [],
+                'YMin': [],
+                'ZMin': [],
+                'XMax': [],
+                'YMax': [],
+                'ZMax': [],
             }
             for boundingBox in boundingBoxs:
                 for key in edges.keys():
@@ -52,12 +66,12 @@ class BoundingBox():
             
             return BoundingBox(
                 (
-                    utils.getMinFromList(edges['xmin']),
-                    utils.getMinFromList(edges['ymin']),
-                    utils.getMinFromList(edges['zmin']),
-                    utils.getMaxFromList(edges['xmax']),
-                    utils.getMaxFromList(edges['ymax']),
-                    utils.getMaxFromList(edges['zmax'])
+                    utils.getMinFromList(edges['XMin']),
+                    utils.getMinFromList(edges['YMin']),
+                    utils.getMinFromList(edges['ZMin']),
+                    utils.getMaxFromList(edges['XMax']),
+                    utils.getMaxFromList(edges['YMax']),
+                    utils.getMaxFromList(edges['ZMax'])
                 )
             )
         else:

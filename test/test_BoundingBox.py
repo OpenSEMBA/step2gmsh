@@ -10,24 +10,24 @@ class testBoundingBox(unittest.TestCase):
     def testCanDefineBoundingBox(self):
         inputExample = (-1, 2.0, 3, 5, 6, 7)
         expectedBoundingBoxEdges: Dict[str, float] = {
-                    'xmin': -1,
-                    'ymin': 2.0,
-                    'zmin': 3,
-                    'xmax': 5,
-                    'ymax': 6,
-                    'zmax': 7,
+                    'XMin': -1,
+                    'YMin': 2.0,
+                    'ZMin': 3,
+                    'XMax': 5,
+                    'YMax': 6,
+                    'ZMax': 7,
                 }
         boundingBox = BoundingBox(inputExample)
         self.assertDictEqual(boundingBox.edges, expectedBoundingBoxEdges)
 
     def testCanGetBoundingBoxFromSurface(self):
         expectedBoundingBoxEdges: Dict[str, float] = {
-            'xmin': -10,
-            'ymin': -10,
-            'zmin': 0,
-            'xmax': 10,
-            'ymax': 10,
-            'zmax': 0,
+            'XMin': -10,
+            'YMin': -10,
+            'ZMin': 0,
+            'XMax': 10,
+            'YMax': 10,
+            'ZMax': 0,
         }
 
         gmsh.initialize()
@@ -39,12 +39,12 @@ class testBoundingBox(unittest.TestCase):
     
     def testCanGetBoundingBoxFromListOfSurfaces(self):
         expectedBoundingBoxEdges: Dict[str, float] = {
-            'xmin': -10,
-            'ymin': -10,
-            'zmin': 0,
-            'xmax': 35,
-            'ymax': 40,
-            'zmax': 0,
+            'XMin': -10,
+            'YMin': -10,
+            'ZMin': 0,
+            'XMax': 35,
+            'YMax': 40,
+            'ZMax': 0,
         }
 
         gmsh.initialize()
