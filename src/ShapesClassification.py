@@ -125,6 +125,8 @@ class ShapesClassification:
         return dict([[0, dom]])
     
     def _buildDefaultVacuumDomain(self):
+        NEAR_REGION_BOUNDING_BOX_SCALING_FACTOR = 1.2
+        FAR_REGION_DISK_SCALING_FACTOR = 4.0
         nonVacuumSurfaces = []
         for _, surf in self.pecs.items():
             nonVacuumSurfaces.extend(surf)
@@ -135,12 +137,15 @@ class ShapesClassification:
 
     
         bbMaxLength = np.max(boundingBox.getLengths())
+        nearVacuumBoxSize = bbMaxLength*NEAR_REGION_BOUNDING_BOX_SCALING_FACTOR
         nVOrigin = tuple(
             np.subtract(boundingBox.getCenter(), 
-                        (bbMaxLength, bbMaxLength, 0.0)))
-        nearVacuum = [(2, gmsh.model.occ.addRectangle(*nVOrigin, *(bbMaxLength*2.0,)*2))]
+                        (nearVacuumBoxSize/2.0, nearVacuumBoxSize/2.0, 0.0)))
+        nearVacuum = [
+            (2, gmsh.model.occ.addRectangle(*nVOrigin, *(nearVacuumBoxSize,)*2))
+        ]
 
-        farVacuumDiameter = 4.0 * boundingBox.getDiagonal()
+        farVacuumDiameter = FAR_REGION_DISK_SCALING_FACTOR * boundingBox.getDiagonal()
         farVacuum = [(2, gmsh.model.occ.addDisk(
             *boundingBox.getCenter(), 
             farVacuumDiameter, farVacuumDiameter))]
