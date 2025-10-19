@@ -1,4 +1,5 @@
-from typing import Tuple
+import os
+from typing import List, Tuple
 import gmsh
 from pathlib import Path
 from typing import Dict
@@ -27,12 +28,43 @@ class Mesher():
         # "Geometry.Tolerance": 1e-3,
     }
 
+    @staticmethod
+    def findDuplicateNodes() -> \
+        Tuple[bool, Dict[Tuple[float, float, float], List[int]]]:
+        """
+        Check if any two nodes in the *current* Gmsh model share the same coordinates.
+        Uses exact (bit-for-bit) coordinate equality.
+
+        Returns
+        -------
+        has_duplicates : bool
+            True if any duplicate node groups are found.
+        groups : dict
+            Mapping from coordinate key -> list of node tags that share that location.
+            The key is the exact (x, y, z) tuple.
+        """
+        node_tags, node_coords, _ = gmsh.model.mesh.getNodes()
+
+        def key_exact(i: int) -> Tuple[float, float, float]:
+            return (node_coords[3*i], node_coords[3*i+1], node_coords[3*i+2])
+
+        groups: Dict[Tuple[float, float, float], List[int]] = {}
+
+        # Exact mode only
+        for idx, tag in enumerate(node_tags):
+            k = key_exact(idx)
+            groups.setdefault(k, []).append(tag)
+        # Keep only groups with more than one node
+        groups = {k: v for k, v in groups.items() if len(v) > 1}
+        return (len(groups) > 0, groups)
+
+
     def runFromInput(self, inputFile, runGui=False):
         caseName = Path(inputFile).stem
 
         gmsh.initialize()
-        self.meshFromStep(inputFile, caseName, self.DEFAULT_MESHING_OPTIONS)
-        self.exportGeometryAreas(caseName)
+        mappedElements = self.meshFromStep(inputFile, caseName, self.DEFAULT_MESHING_OPTIONS)
+        self.exportGeometryAreas(caseName, mappedElements)
         gmsh.write(caseName + '.msh')
         gmsh.write(caseName + '.vtk') # vtk export is just for debugging. 
         if runGui:
@@ -40,48 +72,56 @@ class Mesher():
 
         gmsh.finalize()
 
-    def meshFromStep(self, inputFile: str, caseName: str, meshingOptions=None):
+    def meshFromStep(self, inputFile: str, caseName: str, meshingOptions=None) -> Dict[str,str]:
         if meshingOptions is None:
             meshingOptions = Mesher.DEFAULT_MESHING_OPTIONS
 
         gmsh.model.add(caseName)
         allShapes = ShapesClassification(
-            gmsh.model.occ.importShapes(inputFile, highestDimOnly=False)
+            gmsh.model.occ.importShapes(inputFile, highestDimOnly=False),
+            os.path.splitext(inputFile)[0] +'.json'
         )
 
         # --- Geometry manipulation ---
         allShapes.ensureDielectricsDoNotOverlap()
         allShapes.removeConductorsFromDielectrics()
-        vacuumDomain = allShapes.buildVacuumDomain()
-        # -- Boundaries
-        pecBoundaries = self.extractBoundaries(allShapes.pecs)
+        allShapes.vacuum = allShapes.buildVacuumDomain()
+        allShapes.pecs = self.extractBoundaries(allShapes.pecs)
 
-        self.buildPhysicalModel(
-            pecBoundaries, 
-            allShapes.dielectrics,
-            allShapes.open,
-            vacuumDomain
-        )
-        
+        # --- Mapping
+        mappedComponents = allShapes.getMappedComponents()
+        self.buildPhysicalModel(allShapes, mappedComponents)
+
+
+        # --- Meshing
         for [opt, val] in meshingOptions.items():
             gmsh.option.setNumber(opt, val)
 
-        # --- Mesh generation ---
-        
         gmsh.model.mesh.generate(2)
+        gmsh.model.mesh.removeDuplicateNodes()
 
-    def exportGeometryAreas(self, caseName:str):
+        has_dups, _ = self.findDuplicateNodes()
+        assert not has_dups
+
+        return mappedComponents
+
+
+    def exportGeometryAreas(self, caseName:str, mappedElements:Dict[str,str]):
         exporter = AreaExporterService()
-        exporter.addPhysicalModelOfDimension(dimension=2)
-        exporter.addPhysicalModelOfDimension(dimension=1)
+        exporter.addPhysicalModelForConductors(mappedElements)
         exporter.exportToJson(caseName)
             
 
-    def buildPhysicalModel(self, pecBoundaries, dielectrics, openRegion, vacuumDomain):
-        self._addPhysicalGroup("Conductor_", pecBoundaries, dimensionTag=1)
-        self._addPhysicalGroup("OpenBoundary_", openRegion, dimensionTag=1)
-        self._addPhysicalGroup("Vacuum_", vacuumDomain, dimensionTag=2)
-        self._addPhysicalGroup("Dielectric_", dielectrics, dimensionTag=2)
+    def buildPhysicalModel(self, shapes:ShapesClassification, labelMapping:Dict[str,str]):
+
+        components = {
+            **shapes.pecs,
+            **shapes.dielectrics,
+            **shapes.open,
+            **shapes.vacuum,
+        }
+
+        self._createPhysicalGroups(components, labelMapping)
 
         allEnts = gmsh.model.get_entities()
         entsInPG = []
@@ -95,13 +135,13 @@ class Mesher():
         gmsh.model.occ.synchronize()
 
 
-    def _addPhysicalGroup(self, physicalGroupName:str, objsDict:Dict, dimensionTag=1):
-        for num, objs in objsDict.items():
-            name = physicalGroupName + str(num)
-            tags = [x[1] for x in objs]
-            gmsh.model.addPhysicalGroup(dimensionTag, tags, name=name)
+    def _createPhysicalGroups(self, objsDict:Dict[str,List[Tuple[int,int]]], labelMapping:Dict[str,str]):
+        for name, elements in objsDict.items():
+            mappedName = labelMapping[name]
+            dimensionTag = elements[0][0]
+            tags = [x[1] for x in elements]
+            gmsh.model.addPhysicalGroup(dimensionTag, tags, name=mappedName)
             
-
     @staticmethod
     def getPhysicalGroupWithName(name: str):
         pGs = gmsh.model.getPhysicalGroups()
