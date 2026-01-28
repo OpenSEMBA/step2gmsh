@@ -365,6 +365,27 @@ class TestMesher(unittest.TestCase):
             self.assertEqual(self.countEntitiesInPhysicalGroupWithName(
                 name), expectedEntities[idx], name)
 
+    def test_lansink2024_large_one_centered_fdtd_cell(self):
+        caseName = 'lansink2024_large_one_centered_fdtd_cell'
+        Mesher().meshFromStep(self.inputFileFromCaseName(caseName), caseName)
+
+        gmsh.write(caseName + '.msh')
+        gmsh.write(caseName + '.vtk')
+
+        pGs = gmsh.model.getPhysicalGroups()
+        pGNames = [gmsh.model.getPhysicalName(*pG) for pG in pGs]
+        expectedNames = ['Conductor_0',
+                 'Conductor_1',
+                 'OpenBoundary_0',
+                 'Vacuum_0']
+        expectedEntities = [1, 1, 1,
+                    1]
+        self.assertEqual(sorted(pGNames), sorted(expectedNames))
+
+        for idx, name in enumerate(expectedNames):
+            self.assertEqual(self.countEntitiesInPhysicalGroupWithName(
+                name), expectedEntities[idx], name)
+
     def test_unshielded_nesting(self):
         caseName = 'UnshieldedNested'
         Mesher().meshFromStep(self.inputFileFromCaseName(caseName), caseName)
